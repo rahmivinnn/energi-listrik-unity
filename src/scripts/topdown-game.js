@@ -18,7 +18,11 @@ class TopDownGame {
             shield: 0,
             magnet: 0,
             speedBoost: 0,
-            invulnerable: 0
+            invulnerable: 0,
+            health: 3,
+            maxHealth: 3,
+            ultimateCharge: 0,
+            ultimateMax: 100
         };
         
         this.energyItems = [];
@@ -28,9 +32,22 @@ class TopDownGame {
         this.enemies = [];
         this.powerUps = [];
         this.miniBoss = null;
+        this.hazards = [];
         this.combo = 0;
         this.comboMultiplier = 1;
         this.lastCollectionTime = 0;
+        this.level = 1;
+        this.experience = 0;
+        this.experienceToNext = 100;
+        this.difficulty = 1;
+        this.gameTime = 0;
+        this.achievements = [];
+        this.permanentUpgrades = {
+            maxHealth: 1,
+            speed: 1,
+            magnetRange: 1,
+            shieldDuration: 1
+        };
         this.camera = {
             x: 0,
             y: 0,
@@ -62,6 +79,8 @@ class TopDownGame {
         this.generatePowerStations();
         this.generateEnemies();
         this.generatePowerUps();
+        this.generateHazards();
+        this.initializeAchievements();
         this.start();
     }
     
@@ -125,6 +144,10 @@ class TopDownGame {
             case 'arrowright':
                 this.keys.d = true;
                 this.keys.right = true;
+                break;
+            case ' ':
+                // Spacebar for ultimate ability
+                this.useUltimate();
                 break;
         }
     }
@@ -280,8 +303,13 @@ class TopDownGame {
         this.updateEnemies();
         this.updatePowerUps();
         this.updateMiniBoss();
+        this.updateHazards();
         this.updateParticles();
         this.updatePlayerEffects();
+        this.updateGameTime();
+        this.updateDifficulty();
+        this.checkAchievements();
+        this.updateUltimateCharge();
     }
     
     updatePlayer() {
@@ -385,6 +413,11 @@ class TopDownGame {
         this.lastCollectionTime = now;
         
         this.score += Math.floor(item.value * this.comboMultiplier);
+        this.addExperience(item.value * 2);
+        this.player.ultimateCharge += item.value * 2;
+        if (this.player.ultimateCharge > this.player.ultimateMax) {
+            this.player.ultimateCharge = this.player.ultimateMax;
+        }
         this.updateScore();
         
         // Create collection particles
@@ -622,6 +655,96 @@ class TopDownGame {
         }
     }
     
+    createLevelUpEffect() {
+        for (let i = 0; i < 30; i++) {
+            this.particles.push({
+                x: this.player.x,
+                y: this.player.y,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                life: 1,
+                decay: 0.01,
+                size: 5 + Math.random() * 5,
+                color: '#FFD700'
+            });
+        }
+    }
+    
+    createAchievementEffect(achievement) {
+        for (let i = 0; i < 25; i++) {
+            this.particles.push({
+                x: this.player.x,
+                y: this.player.y,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 0.5) * 8,
+                life: 1,
+                decay: 0.015,
+                size: 4 + Math.random() * 4,
+                color: '#00FF7F'
+            });
+        }
+    }
+    
+    createUltimateEffect() {
+        for (let i = 0; i < 100; i++) {
+            this.particles.push({
+                x: this.player.x,
+                y: this.player.y,
+                vx: (Math.random() - 0.5) * 25,
+                vy: (Math.random() - 0.5) * 25,
+                life: 1,
+                decay: 0.02,
+                size: 8 + Math.random() * 8,
+                color: '#FF00FF'
+            });
+        }
+    }
+    
+    createDifficultyIncreaseEffect() {
+        for (let i = 0; i < 40; i++) {
+            this.particles.push({
+                x: this.canvas.width / 2,
+                y: this.canvas.height / 2,
+                vx: (Math.random() - 0.5) * 15,
+                vy: (Math.random() - 0.5) * 15,
+                life: 1,
+                decay: 0.01,
+                size: 6 + Math.random() * 6,
+                color: '#FF4500'
+            });
+        }
+    }
+    
+    createEnergyDrainEffect() {
+        for (let i = 0; i < 15; i++) {
+            this.particles.push({
+                x: this.player.x,
+                y: this.player.y,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 0.5) * 8,
+                life: 1,
+                decay: 0.02,
+                size: 3 + Math.random() * 3,
+                color: '#FF4500'
+            });
+        }
+    }
+    
+    createSlowFieldEffect() {
+        for (let i = 0; i < 20; i++) {
+            this.particles.push({
+                x: this.player.x,
+                y: this.player.y,
+                vx: (Math.random() - 0.5) * 6,
+                vy: (Math.random() - 0.5) * 6,
+                life: 1,
+                decay: 0.015,
+                size: 4 + Math.random() * 4,
+                color: '#4169E1'
+            });
+        }
+    }
+    
     updateObstacles() {
         this.obstacles.forEach(obstacle => {
             obstacle.pulse += 0.05;
@@ -817,6 +940,225 @@ class TopDownGame {
         }
     }
     
+    updateGameTime() {
+        this.gameTime += 16; // Assuming 60fps
+    }
+    
+    updateDifficulty() {
+        // Increase difficulty every 30 seconds
+        const newDifficulty = Math.floor(this.gameTime / 30000) + 1;
+        if (newDifficulty > this.difficulty) {
+            this.difficulty = newDifficulty;
+            this.onDifficultyIncrease();
+        }
+    }
+    
+    addExperience(amount) {
+        this.experience += amount;
+        if (this.experience >= this.experienceToNext) {
+            this.levelUp();
+        }
+    }
+    
+    levelUp() {
+        this.level++;
+        this.experience -= this.experienceToNext;
+        this.experienceToNext = Math.floor(this.experienceToNext * 1.2);
+        
+        // Apply permanent upgrades
+        this.player.speed = 3 + (this.permanentUpgrades.speed - 1) * 0.5;
+        
+        this.createLevelUpEffect();
+        this.playLevelUpSound();
+        this.updateLevelDisplay();
+    }
+    
+    onDifficultyIncrease() {
+        // Spawn more enemies
+        this.generateEnemies();
+        
+        // Increase enemy speed
+        this.enemies.forEach(enemy => {
+            enemy.speed += 0.2;
+        });
+        
+        // Spawn more energy items
+        this.generateEnergyItems();
+        
+        this.createDifficultyIncreaseEffect();
+    }
+    
+    generateHazards() {
+        this.hazards = [];
+        const hazardCount = 4;
+        
+        for (let i = 0; i < hazardCount; i++) {
+            this.hazards.push({
+                x: Math.random() * (this.canvas.width * 2) - this.canvas.width,
+                y: Math.random() * (this.canvas.height * 2) - this.canvas.height,
+                size: 30 + Math.random() * 20,
+                type: ['energy_drain', 'slow_field', 'damage_zone'][Math.floor(Math.random() * 3)],
+                active: true,
+                pulse: Math.random() * Math.PI * 2,
+                damage: 0.5,
+                lastDamage: 0
+            });
+        }
+    }
+    
+    updateHazards() {
+        this.hazards.forEach(hazard => {
+            hazard.pulse += 0.08;
+            
+            // Check collision with player
+            const dx = hazard.x - this.player.x;
+            const dy = hazard.y - this.player.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < this.player.size + hazard.size && hazard.active) {
+                this.playerHitByHazard(hazard);
+            }
+        });
+    }
+    
+    playerHitByHazard(hazard) {
+        const now = Date.now();
+        
+        if (now - hazard.lastDamage > 1000) { // 1 second cooldown
+            hazard.lastDamage = now;
+            
+            switch(hazard.type) {
+                case 'energy_drain':
+                    // Drain ultimate charge
+                    this.player.ultimateCharge = Math.max(0, this.player.ultimateCharge - 10);
+                    this.createEnergyDrainEffect();
+                    break;
+                case 'slow_field':
+                    // Slow down player
+                    this.player.speed = Math.max(1, this.player.speed * 0.5);
+                    setTimeout(() => {
+                        this.player.speed = 3 + (this.permanentUpgrades.speed - 1) * 0.5;
+                    }, 3000);
+                    this.createSlowFieldEffect();
+                    break;
+                case 'damage_zone':
+                    // Deal damage
+                    if (this.player.shield > 0) {
+                        this.player.shield = 0;
+                        this.createShieldBreakEffect();
+                    } else {
+                        this.player.invulnerable = 1000;
+                        this.camera.shake = 8;
+                        this.createDamageEffect();
+                        this.playDamageSound();
+                    }
+                    break;
+            }
+        }
+    }
+    
+    initializeAchievements() {
+        this.achievements = [
+            { id: 'first_energy', name: 'First Energy', description: 'Kumpulkan energy pertama', unlocked: false, condition: () => this.score >= 1 },
+            { id: 'combo_master', name: 'Combo Master', description: 'Dapatkan combo x5', unlocked: false, condition: () => this.combo >= 5 },
+            { id: 'level_5', name: 'Rising Star', description: 'Capai level 5', unlocked: false, condition: () => this.level >= 5 },
+            { id: 'survivor', name: 'Survivor', description: 'Bertahan 2 menit', unlocked: false, condition: () => this.gameTime >= 120000 },
+            { id: 'energy_hunter', name: 'Energy Hunter', description: 'Kumpulkan 100 energy', unlocked: false, condition: () => this.score >= 100 },
+            { id: 'boss_slayer', name: 'Boss Slayer', description: 'Kalahkan mini-boss', unlocked: false, condition: () => this.miniBoss && this.miniBoss.health <= 0 },
+            { id: 'ultimate_master', name: 'Ultimate Master', description: 'Gunakan ultimate ability', unlocked: false, condition: () => this.player.ultimateCharge >= this.player.ultimateMax }
+        ];
+    }
+    
+    checkAchievements() {
+        this.achievements.forEach(achievement => {
+            if (!achievement.unlocked && achievement.condition()) {
+                this.unlockAchievement(achievement);
+            }
+        });
+    }
+    
+    unlockAchievement(achievement) {
+        achievement.unlocked = true;
+        this.createAchievementEffect(achievement);
+        this.playAchievementSound();
+        this.showAchievementNotification(achievement);
+    }
+    
+    showAchievementNotification(achievement) {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(145deg, rgba(0, 200, 100, 0.95), rgba(0, 150, 75, 0.95));
+            border: 3px solid rgba(0, 255, 127, 0.8);
+            border-radius: 20px;
+            padding: 20px 30px;
+            backdrop-filter: blur(20px);
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+            text-align: center;
+            z-index: 1000;
+            box-shadow: 0 0 30px rgba(0, 255, 127, 0.6);
+            animation: achievementSlideIn 0.5s ease-out;
+        `;
+        
+        notification.innerHTML = `
+            <div style="font-size: 1.5rem; margin-bottom: 10px;">🏆 ACHIEVEMENT UNLOCKED! 🏆</div>
+            <div style="font-size: 1.2rem; font-weight: 700; margin-bottom: 5px;">${achievement.name}</div>
+            <div style="font-size: 1rem; opacity: 0.9;">${achievement.description}</div>
+        `;
+        
+        // Add CSS animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes achievementSlideIn {
+                0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+                50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.8; }
+                100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        document.body.appendChild(notification);
+        
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+            notification.style.animation = 'achievementSlideIn 0.5s ease-out reverse';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+                if (style.parentNode) {
+                    style.parentNode.removeChild(style);
+                }
+            }, 500);
+        }, 3000);
+    }
+    
+    useUltimate() {
+        if (this.player.ultimateCharge >= this.player.ultimateMax) {
+            this.player.ultimateCharge = 0;
+            this.createUltimateEffect();
+            this.playUltimateSound();
+            
+            // Ultimate effect: Clear all enemies and collect all energy
+            this.enemies = [];
+            this.energyItems.forEach(item => {
+                if (!item.collected) {
+                    this.collectEnergyItem(item);
+                }
+            });
+            
+            // Add ultimate charge when collecting energy
+            this.player.ultimateCharge += 5;
+            if (this.player.ultimateCharge > this.player.ultimateMax) {
+                this.player.ultimateCharge = this.player.ultimateMax;
+            }
+        }
+    }
+    
     updateParticles() {
         this.particles = this.particles.filter(particle => {
             particle.x += particle.vx;
@@ -838,6 +1180,8 @@ class TopDownGame {
         // Update combo display
         this.updateComboDisplay();
         this.updatePowerUpDisplay();
+        this.updateLevelDisplay();
+        this.updateUltimateDisplay();
     }
     
     updateComboDisplay() {
@@ -908,6 +1252,89 @@ class TopDownGame {
             powerUpElement.textContent = activePowerUps.join(' | ');
         } else {
             powerUpElement.style.display = 'none';
+        }
+    }
+    
+    updateLevelDisplay() {
+        let levelElement = document.getElementById('level-display');
+        if (!levelElement) {
+            levelElement = document.createElement('div');
+            levelElement.id = 'level-display';
+            levelElement.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(145deg, rgba(100, 50, 200, 0.8), rgba(150, 100, 250, 0.9));
+                border: 2px solid rgba(200, 100, 255, 0.6);
+                border-radius: 25px;
+                padding: 12px 20px;
+                backdrop-filter: blur(10px);
+                color: white;
+                font-family: 'Orbitron', sans-serif;
+                font-size: 1.2rem;
+                font-weight: 700;
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+                z-index: 10;
+            `;
+            document.body.appendChild(levelElement);
+        }
+        
+        const expPercent = (this.experience / this.experienceToNext) * 100;
+        levelElement.innerHTML = `
+            <div>Level ${this.level}</div>
+            <div style="font-size: 0.8rem; margin-top: 5px;">
+                <div style="background: rgba(0,0,0,0.3); border-radius: 10px; height: 8px; width: 100px; overflow: hidden;">
+                    <div style="background: linear-gradient(90deg, #00FF7F, #00BFFF); height: 100%; width: ${expPercent}%; transition: width 0.3s ease;"></div>
+                </div>
+                <div style="font-size: 0.7rem; margin-top: 2px;">${this.experience}/${this.experienceToNext} XP</div>
+            </div>
+        `;
+    }
+    
+    updateUltimateDisplay() {
+        let ultimateElement = document.getElementById('ultimate-display');
+        if (!ultimateElement) {
+            ultimateElement = document.createElement('div');
+            ultimateElement.id = 'ultimate-display';
+            ultimateElement.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                background: linear-gradient(145deg, rgba(200, 50, 200, 0.8), rgba(250, 100, 250, 0.9));
+                border: 2px solid rgba(255, 100, 255, 0.6);
+                border-radius: 25px;
+                padding: 12px 20px;
+                backdrop-filter: blur(10px);
+                color: white;
+                font-family: 'Orbitron', sans-serif;
+                font-size: 1rem;
+                font-weight: 700;
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+                z-index: 10;
+            `;
+            document.body.appendChild(ultimateElement);
+        }
+        
+        const ultimatePercent = (this.player.ultimateCharge / this.player.ultimateMax) * 100;
+        const isReady = this.player.ultimateCharge >= this.player.ultimateMax;
+        
+        ultimateElement.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="font-size: 1.5rem;">⚡</div>
+                <div>
+                    <div style="font-size: 0.9rem;">Ultimate</div>
+                    <div style="background: rgba(0,0,0,0.3); border-radius: 10px; height: 8px; width: 100px; overflow: hidden; margin-top: 3px;">
+                        <div style="background: linear-gradient(90deg, #FF00FF, #FF69B4); height: 100%; width: ${ultimatePercent}%; transition: width 0.3s ease; ${isReady ? 'box-shadow: 0 0 10px #FF00FF;' : ''}"></div>
+                    </div>
+                    <div style="font-size: 0.7rem; margin-top: 2px;">${Math.floor(ultimatePercent)}%</div>
+                </div>
+            </div>
+        `;
+        
+        if (isReady) {
+            ultimateElement.style.boxShadow = '0 0 20px rgba(255, 0, 255, 0.8)';
+        } else {
+            ultimateElement.style.boxShadow = 'none';
         }
     }
     
@@ -1047,6 +1474,77 @@ class TopDownGame {
         }
     }
     
+    playLevelUpSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(800, audioContext.currentTime + 0.3);
+            oscillator.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.6);
+            
+            gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.8);
+        } catch (e) {
+            console.log('Audio context not available');
+        }
+    }
+    
+    playAchievementSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.1);
+            oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.2);
+            oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.3);
+            
+            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        } catch (e) {
+            console.log('Audio context not available');
+        }
+    }
+    
+    playUltimateSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.2);
+            oscillator.frequency.exponentialRampToValueAtTime(800, audioContext.currentTime + 0.4);
+            oscillator.frequency.exponentialRampToValueAtTime(1600, audioContext.currentTime + 0.6);
+            
+            gainNode.gain.setValueAtTime(0.25, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1.0);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 1.0);
+        } catch (e) {
+            console.log('Audio context not available');
+        }
+    }
+    
     render() {
         if (!this.ctx) return;
         
@@ -1077,6 +1575,9 @@ class TopDownGame {
         
         // Draw mini-boss
         this.drawMiniBoss();
+        
+        // Draw hazards
+        this.drawHazards();
         
         // Draw energy items
         this.drawEnergyItems();
@@ -1359,6 +1860,45 @@ class TopDownGame {
         this.ctx.fillText('👹', this.miniBoss.x, this.miniBoss.y);
     }
     
+    drawHazards() {
+        this.hazards.forEach(hazard => {
+            if (!hazard.active) return;
+            
+            const pulseSize = hazard.size + Math.sin(hazard.pulse) * 5;
+            const colors = {
+                'energy_drain': '#FF4500',
+                'slow_field': '#4169E1',
+                'damage_zone': '#DC143C'
+            };
+            
+            // Hazard glow
+            this.ctx.shadowColor = colors[hazard.type];
+            this.ctx.shadowBlur = 20;
+            
+            // Hazard body
+            this.ctx.fillStyle = colors[hazard.type];
+            this.ctx.beginPath();
+            this.ctx.arc(hazard.x, hazard.y, pulseSize, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Hazard symbol
+            this.ctx.shadowBlur = 0;
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.font = `${pulseSize}px Arial`;
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            
+            let symbol = '';
+            switch(hazard.type) {
+                case 'energy_drain': symbol = '⚡'; break;
+                case 'slow_field': symbol = '🐌'; break;
+                case 'damage_zone': symbol = '💀'; break;
+            }
+            
+            this.ctx.fillText(symbol, hazard.x, hazard.y);
+        });
+    }
+    
     drawPlayer() {
         // Player glow
         this.ctx.shadowColor = this.player.color;
@@ -1457,13 +1997,23 @@ class TopDownGame {
         this.enemies = [];
         this.powerUps = [];
         this.miniBoss = null;
+        this.hazards = [];
         
         this.generateEnergyItems();
         this.generateObstacles();
         this.generatePowerStations();
         this.generateEnemies();
         this.generatePowerUps();
+        this.generateHazards();
         this.updateScore();
+    }
+    
+    updateUltimateCharge() {
+        // Ultimate charge slowly decreases over time
+        if (this.player.ultimateCharge > 0) {
+            this.player.ultimateCharge -= 0.1;
+            if (this.player.ultimateCharge < 0) this.player.ultimateCharge = 0;
+        }
     }
 }
 
