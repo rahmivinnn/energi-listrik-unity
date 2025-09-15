@@ -1,0 +1,768 @@
+// Top-Down Mini Game for Main Menu
+class TopDownGame {
+    constructor() {
+        this.canvas = null;
+        this.ctx = null;
+        this.isRunning = false;
+        this.animationId = null;
+        
+        // Game state
+        this.score = 0;
+        this.player = {
+            x: 100,
+            y: 100,
+            size: 20,
+            speed: 3,
+            color: '#00BFFF',
+            trail: []
+        };
+        
+        this.energyItems = [];
+        this.particles = [];
+        this.obstacles = [];
+        this.powerStations = [];
+        this.camera = {
+            x: 0,
+            y: 0,
+            zoom: 1,
+            targetZoom: 1,
+            shake: 0
+        };
+        
+        // Input handling
+        this.keys = {
+            w: false,
+            a: false,
+            s: false,
+            d: false,
+            up: false,
+            down: false,
+            left: false,
+            right: false
+        };
+        
+        this.init();
+    }
+    
+    init() {
+        this.setupCanvas();
+        this.setupEventListeners();
+        this.generateEnergyItems();
+        this.generateObstacles();
+        this.generatePowerStations();
+        this.start();
+    }
+    
+    setupCanvas() {
+        this.canvas = document.getElementById('topdown-game-canvas');
+        if (!this.canvas) {
+            console.error('Canvas not found');
+            return;
+        }
+        
+        this.ctx = this.canvas.getContext('2d');
+        this.resizeCanvas();
+        
+        window.addEventListener('resize', () => this.resizeCanvas());
+    }
+    
+    resizeCanvas() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    }
+    
+    setupEventListeners() {
+        // Keyboard events
+        document.addEventListener('keydown', (e) => {
+            this.handleKeyDown(e);
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            this.handleKeyUp(e);
+        });
+        
+        // Mouse events for camera control
+        this.canvas.addEventListener('mousemove', (e) => {
+            this.handleMouseMove(e);
+        });
+        
+        this.canvas.addEventListener('wheel', (e) => {
+            this.handleWheel(e);
+        });
+    }
+    
+    handleKeyDown(e) {
+        const key = e.key.toLowerCase();
+        switch(key) {
+            case 'w':
+            case 'arrowup':
+                this.keys.w = true;
+                this.keys.up = true;
+                break;
+            case 'a':
+            case 'arrowleft':
+                this.keys.a = true;
+                this.keys.left = true;
+                break;
+            case 's':
+            case 'arrowdown':
+                this.keys.s = true;
+                this.keys.down = true;
+                break;
+            case 'd':
+            case 'arrowright':
+                this.keys.d = true;
+                this.keys.right = true;
+                break;
+        }
+    }
+    
+    handleKeyUp(e) {
+        const key = e.key.toLowerCase();
+        switch(key) {
+            case 'w':
+            case 'arrowup':
+                this.keys.w = false;
+                this.keys.up = false;
+                break;
+            case 'a':
+            case 'arrowleft':
+                this.keys.a = false;
+                this.keys.left = false;
+                break;
+            case 's':
+            case 'arrowdown':
+                this.keys.s = false;
+                this.keys.down = false;
+                break;
+            case 'd':
+            case 'arrowright':
+                this.keys.d = false;
+                this.keys.right = false;
+                break;
+        }
+    }
+    
+    handleMouseMove(e) {
+        // Smooth camera follow
+        const rect = this.canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        this.camera.targetX = mouseX - this.canvas.width / 2;
+        this.camera.targetY = mouseY - this.canvas.height / 2;
+    }
+    
+    handleWheel(e) {
+        e.preventDefault();
+        const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+        this.camera.targetZoom = Math.max(0.5, Math.min(2, this.camera.zoom * zoomFactor));
+    }
+    
+    generateEnergyItems() {
+        this.energyItems = [];
+        const itemCount = 15;
+        
+        for (let i = 0; i < itemCount; i++) {
+            this.energyItems.push({
+                x: Math.random() * (this.canvas.width * 2) - this.canvas.width,
+                y: Math.random() * (this.canvas.height * 2) - this.canvas.height,
+                size: 8 + Math.random() * 8,
+                color: this.getRandomEnergyColor(),
+                pulse: Math.random() * Math.PI * 2,
+                collected: false,
+                value: Math.floor(Math.random() * 3) + 1
+            });
+        }
+    }
+    
+    getRandomEnergyColor() {
+        const colors = ['#FFD700', '#00FF7F', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4'];
+        return colors[Math.floor(Math.random() * colors.length)];
+    }
+    
+    generateObstacles() {
+        this.obstacles = [];
+        const obstacleCount = 8;
+        
+        for (let i = 0; i < obstacleCount; i++) {
+            this.obstacles.push({
+                x: Math.random() * (this.canvas.width * 2) - this.canvas.width,
+                y: Math.random() * (this.canvas.height * 2) - this.canvas.height,
+                width: 30 + Math.random() * 40,
+                height: 30 + Math.random() * 40,
+                type: Math.random() > 0.5 ? 'energy_waste' : 'broken_circuit',
+                rotation: Math.random() * Math.PI * 2,
+                pulse: Math.random() * Math.PI * 2
+            });
+        }
+    }
+    
+    generatePowerStations() {
+        this.powerStations = [];
+        const stationCount = 3;
+        
+        for (let i = 0; i < stationCount; i++) {
+            this.powerStations.push({
+                x: Math.random() * (this.canvas.width * 2) - this.canvas.width,
+                y: Math.random() * (this.canvas.height * 2) - this.canvas.height,
+                size: 40 + Math.random() * 20,
+                energy: 100,
+                maxEnergy: 100,
+                isActive: true,
+                pulse: Math.random() * Math.PI * 2,
+                lastInteraction: 0
+            });
+        }
+    }
+    
+    update() {
+        this.updatePlayer();
+        this.updateCamera();
+        this.updateEnergyItems();
+        this.updateObstacles();
+        this.updatePowerStations();
+        this.updateParticles();
+    }
+    
+    updatePlayer() {
+        // Movement
+        let dx = 0;
+        let dy = 0;
+        
+        if (this.keys.w || this.keys.up) dy -= this.player.speed;
+        if (this.keys.s || this.keys.down) dy += this.player.speed;
+        if (this.keys.a || this.keys.left) dx -= this.player.speed;
+        if (this.keys.d || this.keys.right) dx += this.player.speed;
+        
+        // Normalize diagonal movement
+        if (dx !== 0 && dy !== 0) {
+            dx *= 0.707;
+            dy *= 0.707;
+        }
+        
+        this.player.x += dx;
+        this.player.y += dy;
+        
+        // Keep player in bounds (with some margin)
+        const margin = 50;
+        this.player.x = Math.max(margin, Math.min(this.canvas.width * 2 - margin, this.player.x));
+        this.player.y = Math.max(margin, Math.min(this.canvas.height * 2 - margin, this.player.y));
+        
+        // Add to trail
+        this.player.trail.push({ x: this.player.x, y: this.player.y });
+        if (this.player.trail.length > 20) {
+            this.player.trail.shift();
+        }
+    }
+    
+    updateCamera() {
+        // Smooth camera movement
+        this.camera.x += (this.player.x - this.canvas.width / 2 - this.camera.x) * 0.05;
+        this.camera.y += (this.player.y - this.canvas.height / 2 - this.camera.y) * 0.05;
+        
+        // Smooth zoom
+        this.camera.zoom += (this.camera.targetZoom - this.camera.zoom) * 0.05;
+        
+        // Camera shake effect
+        if (this.camera.shake > 0) {
+            this.camera.x += (Math.random() - 0.5) * this.camera.shake;
+            this.camera.y += (Math.random() - 0.5) * this.camera.shake;
+            this.camera.shake *= 0.9;
+        }
+    }
+    
+    updateEnergyItems() {
+        this.energyItems.forEach(item => {
+            if (item.collected) return;
+            
+            item.pulse += 0.1;
+            
+            // Check collision with player
+            const dx = item.x - this.player.x;
+            const dy = item.y - this.player.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < this.player.size + item.size) {
+                this.collectEnergyItem(item);
+            }
+        });
+    }
+    
+    collectEnergyItem(item) {
+        item.collected = true;
+        this.score += item.value;
+        this.updateScore();
+        
+        // Create collection particles
+        this.createCollectionParticles(item.x, item.y, item.color);
+        
+        // Play collection sound
+        this.playCollectionSound();
+        
+        // Add screen shake effect
+        this.camera.shake = 5;
+        
+        // Regenerate items if all collected
+        if (this.energyItems.every(item => item.collected)) {
+            setTimeout(() => {
+                this.generateEnergyItems();
+            }, 1000);
+        }
+    }
+    
+    createCollectionParticles(x, y, color) {
+        for (let i = 0; i < 8; i++) {
+            this.particles.push({
+                x: x,
+                y: y,
+                vx: (Math.random() - 0.5) * 4,
+                vy: (Math.random() - 0.5) * 4,
+                life: 1,
+                decay: 0.02,
+                size: 3 + Math.random() * 3,
+                color: color
+            });
+        }
+    }
+    
+    updateObstacles() {
+        this.obstacles.forEach(obstacle => {
+            obstacle.pulse += 0.05;
+            
+            // Check collision with player
+            const dx = obstacle.x - this.player.x;
+            const dy = obstacle.y - this.player.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < this.player.size + Math.max(obstacle.width, obstacle.height) / 2) {
+                // Slow down player when near obstacles
+                this.player.speed = 1.5;
+                
+                // Play warning sound occasionally
+                if (Math.random() < 0.01) {
+                    this.playObstacleWarningSound();
+                }
+            } else {
+                this.player.speed = 3;
+            }
+        });
+    }
+    
+    updatePowerStations() {
+        this.powerStations.forEach(station => {
+            station.pulse += 0.03;
+            
+            // Check interaction with player
+            const dx = station.x - this.player.x;
+            const dy = station.y - this.player.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < this.player.size + station.size && station.isActive) {
+                const now = Date.now();
+                if (now - station.lastInteraction > 2000) { // 2 second cooldown
+                    this.interactWithPowerStation(station);
+                    station.lastInteraction = now;
+                }
+            }
+        });
+    }
+    
+    interactWithPowerStation(station) {
+        if (station.energy > 0) {
+            station.energy -= 20;
+            this.score += 5;
+            this.updateScore();
+            
+            // Create energy boost particles
+            this.createEnergyBoostParticles(station.x, station.y);
+            
+            // Play power station sound
+            this.playPowerStationSound();
+            
+            if (station.energy <= 0) {
+                station.isActive = false;
+                // Regenerate after 10 seconds
+                setTimeout(() => {
+                    station.energy = station.maxEnergy;
+                    station.isActive = true;
+                }, 10000);
+            }
+        }
+    }
+    
+    createEnergyBoostParticles(x, y) {
+        for (let i = 0; i < 12; i++) {
+            this.particles.push({
+                x: x,
+                y: y,
+                vx: (Math.random() - 0.5) * 6,
+                vy: (Math.random() - 0.5) * 6,
+                life: 1,
+                decay: 0.015,
+                size: 4 + Math.random() * 4,
+                color: '#00BFFF'
+            });
+        }
+    }
+    
+    updateParticles() {
+        this.particles = this.particles.filter(particle => {
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            particle.life -= particle.decay;
+            particle.vx *= 0.98;
+            particle.vy *= 0.98;
+            
+            return particle.life > 0;
+        });
+    }
+    
+    updateScore() {
+        const scoreElement = document.getElementById('energy-score');
+        if (scoreElement) {
+            scoreElement.textContent = this.score;
+        }
+    }
+    
+    playCollectionSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.1);
+            
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.2);
+        } catch (e) {
+            console.log('Audio context not available');
+        }
+    }
+    
+    playPowerStationSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(800, audioContext.currentTime + 0.3);
+            
+            gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.4);
+        } catch (e) {
+            console.log('Audio context not available');
+        }
+    }
+    
+    playObstacleWarningSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+            oscillator.frequency.setValueAtTime(150, audioContext.currentTime + 0.1);
+            oscillator.frequency.setValueAtTime(200, audioContext.currentTime + 0.2);
+            
+            gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.3);
+        } catch (e) {
+            console.log('Audio context not available');
+        }
+    }
+    
+    render() {
+        if (!this.ctx) return;
+        
+        // Clear canvas
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Save context
+        this.ctx.save();
+        
+        // Apply camera transform
+        this.ctx.translate(-this.camera.x, -this.camera.y);
+        this.ctx.scale(this.camera.zoom, this.camera.zoom);
+        
+        // Draw background grid
+        this.drawGrid();
+        
+        // Draw obstacles
+        this.drawObstacles();
+        
+        // Draw power stations
+        this.drawPowerStations();
+        
+        // Draw energy items
+        this.drawEnergyItems();
+        
+        // Draw player trail
+        this.drawPlayerTrail();
+        
+        // Draw player
+        this.drawPlayer();
+        
+        // Draw particles
+        this.drawParticles();
+        
+        // Restore context
+        this.ctx.restore();
+    }
+    
+    drawGrid() {
+        this.ctx.strokeStyle = 'rgba(0, 191, 255, 0.1)';
+        this.ctx.lineWidth = 1;
+        
+        const gridSize = 50;
+        const startX = Math.floor(this.camera.x / gridSize) * gridSize;
+        const startY = Math.floor(this.camera.y / gridSize) * gridSize;
+        
+        for (let x = startX; x < this.camera.x + this.canvas.width; x += gridSize) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, this.camera.y);
+            this.ctx.lineTo(x, this.camera.y + this.canvas.height);
+            this.ctx.stroke();
+        }
+        
+        for (let y = startY; y < this.camera.y + this.canvas.height; y += gridSize) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.camera.x, y);
+            this.ctx.lineTo(this.camera.x + this.canvas.width, y);
+            this.ctx.stroke();
+        }
+    }
+    
+    drawObstacles() {
+        this.obstacles.forEach(obstacle => {
+            this.ctx.save();
+            this.ctx.translate(obstacle.x, obstacle.y);
+            this.ctx.rotate(obstacle.rotation + obstacle.pulse * 0.1);
+            
+            const pulseScale = 1 + Math.sin(obstacle.pulse) * 0.1;
+            this.ctx.scale(pulseScale, pulseScale);
+            
+            if (obstacle.type === 'energy_waste') {
+                // Draw energy waste obstacle
+                this.ctx.fillStyle = 'rgba(255, 100, 100, 0.7)';
+                this.ctx.shadowColor = '#FF6464';
+                this.ctx.shadowBlur = 10;
+                
+                this.ctx.fillRect(-obstacle.width/2, -obstacle.height/2, obstacle.width, obstacle.height);
+                
+                // Inner pattern
+                this.ctx.shadowBlur = 0;
+                this.ctx.fillStyle = 'rgba(255, 200, 200, 0.5)';
+                this.ctx.fillRect(-obstacle.width/3, -obstacle.height/3, obstacle.width/1.5, obstacle.height/1.5);
+            } else {
+                // Draw broken circuit obstacle
+                this.ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)';
+                this.ctx.lineWidth = 3;
+                this.ctx.shadowColor = '#FFA500';
+                this.ctx.shadowBlur = 8;
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(-obstacle.width/2, -obstacle.height/2);
+                this.ctx.lineTo(obstacle.width/2, -obstacle.height/2);
+                this.ctx.lineTo(obstacle.width/2, obstacle.height/2);
+                this.ctx.lineTo(-obstacle.width/2, obstacle.height/2);
+                this.ctx.closePath();
+                this.ctx.stroke();
+                
+                // Circuit pattern
+                this.ctx.shadowBlur = 0;
+                this.ctx.strokeStyle = 'rgba(255, 200, 100, 0.6)';
+                this.ctx.lineWidth = 1;
+                this.ctx.beginPath();
+                this.ctx.moveTo(-obstacle.width/4, -obstacle.height/4);
+                this.ctx.lineTo(obstacle.width/4, obstacle.height/4);
+                this.ctx.moveTo(obstacle.width/4, -obstacle.height/4);
+                this.ctx.lineTo(-obstacle.width/4, obstacle.height/4);
+                this.ctx.stroke();
+            }
+            
+            this.ctx.restore();
+        });
+    }
+    
+    drawPowerStations() {
+        this.powerStations.forEach(station => {
+            const pulseSize = station.size + Math.sin(station.pulse) * 3;
+            const energyRatio = station.energy / station.maxEnergy;
+            
+            // Station glow
+            this.ctx.shadowColor = station.isActive ? '#00BFFF' : '#666666';
+            this.ctx.shadowBlur = 20;
+            
+            // Station body
+            this.ctx.fillStyle = station.isActive ? 
+                `rgba(0, 191, 255, ${0.3 + energyRatio * 0.4})` : 
+                'rgba(100, 100, 100, 0.3)';
+            this.ctx.beginPath();
+            this.ctx.arc(station.x, station.y, pulseSize, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Energy level indicator
+            this.ctx.shadowBlur = 0;
+            this.ctx.strokeStyle = station.isActive ? '#00BFFF' : '#666666';
+            this.ctx.lineWidth = 4;
+            this.ctx.beginPath();
+            this.ctx.arc(station.x, station.y, pulseSize * 0.8, 0, Math.PI * 2);
+            this.ctx.stroke();
+            
+            // Energy bar
+            if (station.isActive) {
+                this.ctx.fillStyle = `hsl(${120 * energyRatio}, 70%, 50%)`;
+                this.ctx.fillRect(station.x - pulseSize/2, station.y - pulseSize - 10, pulseSize * energyRatio, 4);
+            }
+            
+            // Station core
+            this.ctx.fillStyle = station.isActive ? 'rgba(255, 255, 255, 0.9)' : 'rgba(150, 150, 150, 0.5)';
+            this.ctx.beginPath();
+            this.ctx.arc(station.x, station.y, pulseSize * 0.3, 0, Math.PI * 2);
+            this.ctx.fill();
+        });
+    }
+    
+    drawEnergyItems() {
+        this.energyItems.forEach(item => {
+            if (item.collected) return;
+            
+            const pulseSize = item.size + Math.sin(item.pulse) * 2;
+            
+            // Glow effect
+            this.ctx.shadowColor = item.color;
+            this.ctx.shadowBlur = 15;
+            
+            // Draw energy item
+            this.ctx.fillStyle = item.color;
+            this.ctx.beginPath();
+            this.ctx.arc(item.x, item.y, pulseSize, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Inner glow
+            this.ctx.shadowBlur = 0;
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            this.ctx.beginPath();
+            this.ctx.arc(item.x, item.y, pulseSize * 0.5, 0, Math.PI * 2);
+            this.ctx.fill();
+        });
+    }
+    
+    drawPlayerTrail() {
+        if (this.player.trail.length < 2) return;
+        
+        this.ctx.strokeStyle = 'rgba(0, 191, 255, 0.3)';
+        this.ctx.lineWidth = 3;
+        this.ctx.lineCap = 'round';
+        
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.player.trail[0].x, this.player.trail[0].y);
+        
+        for (let i = 1; i < this.player.trail.length; i++) {
+            this.ctx.lineTo(this.player.trail[i].x, this.player.trail[i].y);
+        }
+        
+        this.ctx.stroke();
+    }
+    
+    drawPlayer() {
+        // Player glow
+        this.ctx.shadowColor = this.player.color;
+        this.ctx.shadowBlur = 20;
+        
+        // Player body
+        this.ctx.fillStyle = this.player.color;
+        this.ctx.beginPath();
+        this.ctx.arc(this.player.x, this.player.y, this.player.size, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Player inner circle
+        this.ctx.shadowBlur = 0;
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        this.ctx.beginPath();
+        this.ctx.arc(this.player.x, this.player.y, this.player.size * 0.6, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Player direction indicator
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.arc(this.player.x, this.player.y, this.player.size * 0.8, 0, Math.PI * 2);
+        this.ctx.stroke();
+    }
+    
+    drawParticles() {
+        this.particles.forEach(particle => {
+            this.ctx.globalAlpha = particle.life;
+            this.ctx.fillStyle = particle.color;
+            this.ctx.beginPath();
+            this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+            this.ctx.fill();
+        });
+        this.ctx.globalAlpha = 1;
+    }
+    
+    gameLoop() {
+        if (!this.isRunning) return;
+        
+        this.update();
+        this.render();
+        
+        this.animationId = requestAnimationFrame(() => this.gameLoop());
+    }
+    
+    start() {
+        if (this.isRunning) return;
+        
+        this.isRunning = true;
+        this.gameLoop();
+    }
+    
+    stop() {
+        this.isRunning = false;
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+        }
+    }
+    
+    reset() {
+        this.score = 0;
+        this.player.x = 100;
+        this.player.y = 100;
+        this.player.trail = [];
+        this.particles = [];
+        this.generateEnergyItems();
+        this.generateObstacles();
+        this.generatePowerStations();
+        this.updateScore();
+    }
+}
+
+// Initialize the game when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Start the top-down game after a short delay
+    setTimeout(() => {
+        window.topDownGame = new TopDownGame();
+    }, 1000);
+});

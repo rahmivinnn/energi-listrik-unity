@@ -19,6 +19,21 @@
         <div class="video-overlay"></div>
     </div>
 
+    <!-- Top-Down Game Canvas -->
+    <canvas id="topdown-game-canvas"></canvas>
+    
+    <!-- Game UI Overlay -->
+    <div id="game-ui-overlay">
+        <div class="energy-counter">
+            <i class="fas fa-bolt"></i>
+            <span id="energy-score">0</span>
+        </div>
+        <div class="game-instructions">
+            <p>Gunakan WASD atau Arrow Keys untuk bergerak</p>
+            <p>Kumpulkan energi untuk skor tinggi!</p>
+        </div>
+    </div>
+
     <!-- Main Menu Container -->
     <div id="main-menu-container">
         <!-- Header Title -->
@@ -150,5 +165,6 @@
 
     <script src="scripts/scene-manager.js"></script>
     <script src="scripts/main-menu.js"></script>
+    <script src="scripts/topdown-game.js"></script>
 </body>
 </html>
