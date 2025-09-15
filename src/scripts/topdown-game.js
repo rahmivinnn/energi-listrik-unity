@@ -14,13 +14,23 @@ class TopDownGame {
             size: 20,
             speed: 3,
             color: '#00BFFF',
-            trail: []
+            trail: [],
+            shield: 0,
+            magnet: 0,
+            speedBoost: 0,
+            invulnerable: 0
         };
         
         this.energyItems = [];
         this.particles = [];
         this.obstacles = [];
         this.powerStations = [];
+        this.enemies = [];
+        this.powerUps = [];
+        this.miniBoss = null;
+        this.combo = 0;
+        this.comboMultiplier = 1;
+        this.lastCollectionTime = 0;
         this.camera = {
             x: 0,
             y: 0,
@@ -50,6 +60,8 @@ class TopDownGame {
         this.generateEnergyItems();
         this.generateObstacles();
         this.generatePowerStations();
+        this.generateEnemies();
+        this.generatePowerUps();
         this.start();
     }
     
@@ -216,24 +228,76 @@ class TopDownGame {
         }
     }
     
+    generateEnemies() {
+        this.enemies = [];
+        const enemyCount = 5;
+        
+        for (let i = 0; i < enemyCount; i++) {
+            this.enemies.push({
+                x: Math.random() * (this.canvas.width * 2) - this.canvas.width,
+                y: Math.random() * (this.canvas.height * 2) - this.canvas.height,
+                size: 15 + Math.random() * 10,
+                speed: 1 + Math.random() * 1.5,
+                color: '#FF4444',
+                health: 3,
+                maxHealth: 3,
+                lastAttack: 0,
+                attackCooldown: 2000,
+                type: Math.random() > 0.5 ? 'chaser' : 'patrol',
+                patrolTarget: {
+                    x: Math.random() * (this.canvas.width * 2) - this.canvas.width,
+                    y: Math.random() * (this.canvas.height * 2) - this.canvas.height
+                },
+                pulse: Math.random() * Math.PI * 2
+            });
+        }
+    }
+    
+    generatePowerUps() {
+        this.powerUps = [];
+        const powerUpCount = 3;
+        
+        for (let i = 0; i < powerUpCount; i++) {
+            this.powerUps.push({
+                x: Math.random() * (this.canvas.width * 2) - this.canvas.width,
+                y: Math.random() * (this.canvas.height * 2) - this.canvas.height,
+                size: 12 + Math.random() * 8,
+                type: ['shield', 'magnet', 'speed'][Math.floor(Math.random() * 3)],
+                duration: 10000, // 10 seconds
+                collected: false,
+                pulse: Math.random() * Math.PI * 2,
+                spawnTime: Date.now()
+            });
+        }
+    }
+    
     update() {
         this.updatePlayer();
         this.updateCamera();
         this.updateEnergyItems();
         this.updateObstacles();
         this.updatePowerStations();
+        this.updateEnemies();
+        this.updatePowerUps();
+        this.updateMiniBoss();
         this.updateParticles();
+        this.updatePlayerEffects();
     }
     
     updatePlayer() {
-        // Movement
+        // Movement with speed boost
+        let baseSpeed = this.player.speed;
+        if (this.player.speedBoost > 0) {
+            baseSpeed *= 2;
+        }
+        
         let dx = 0;
         let dy = 0;
         
-        if (this.keys.w || this.keys.up) dy -= this.player.speed;
-        if (this.keys.s || this.keys.down) dy += this.player.speed;
-        if (this.keys.a || this.keys.left) dx -= this.player.speed;
-        if (this.keys.d || this.keys.right) dx += this.player.speed;
+        if (this.keys.w || this.keys.up) dy -= baseSpeed;
+        if (this.keys.s || this.keys.down) dy += baseSpeed;
+        if (this.keys.a || this.keys.left) dx -= baseSpeed;
+        if (this.keys.d || this.keys.right) dx += baseSpeed;
         
         // Normalize diagonal movement
         if (dx !== 0 && dy !== 0) {
@@ -253,6 +317,23 @@ class TopDownGame {
         this.player.trail.push({ x: this.player.x, y: this.player.y });
         if (this.player.trail.length > 20) {
             this.player.trail.shift();
+        }
+        
+        // Magnet effect - attract nearby energy items
+        if (this.player.magnet > 0) {
+            this.energyItems.forEach(item => {
+                if (item.collected) return;
+                
+                const dx = this.player.x - item.x;
+                const dy = this.player.y - item.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < 100) { // Magnet range
+                    const magnetForce = 0.3;
+                    item.x += (dx / distance) * magnetForce;
+                    item.y += (dy / distance) * magnetForce;
+                }
+            });
         }
     }
     
@@ -291,7 +372,19 @@ class TopDownGame {
     
     collectEnergyItem(item) {
         item.collected = true;
-        this.score += item.value;
+        
+        // Combo system
+        const now = Date.now();
+        if (now - this.lastCollectionTime < 2000) { // Within 2 seconds
+            this.combo++;
+            this.comboMultiplier = Math.min(5, 1 + this.combo * 0.5);
+        } else {
+            this.combo = 1;
+            this.comboMultiplier = 1;
+        }
+        this.lastCollectionTime = now;
+        
+        this.score += Math.floor(item.value * this.comboMultiplier);
         this.updateScore();
         
         // Create collection particles
@@ -311,6 +404,98 @@ class TopDownGame {
         }
     }
     
+    collectPowerUp(powerUp) {
+        powerUp.collected = true;
+        
+        switch(powerUp.type) {
+            case 'shield':
+                this.player.shield = powerUp.duration;
+                this.createShieldEffect();
+                break;
+            case 'magnet':
+                this.player.magnet = powerUp.duration;
+                this.createMagnetEffect();
+                break;
+            case 'speed':
+                this.player.speedBoost = powerUp.duration;
+                this.createSpeedEffect();
+                break;
+        }
+        
+        // Create collection particles
+        this.createPowerUpParticles(powerUp.x, powerUp.y, powerUp.type);
+        
+        // Play power-up sound
+        this.playPowerUpSound();
+        
+        // Regenerate power-ups
+        setTimeout(() => {
+            this.generatePowerUps();
+        }, 2000);
+    }
+    
+    playerHitByEnemy(enemy) {
+        if (this.player.shield > 0) {
+            // Shield absorbs damage
+            this.player.shield = 0;
+            this.createShieldBreakEffect();
+        } else {
+            // Take damage
+            this.player.invulnerable = 2000; // 2 seconds invulnerability
+            this.camera.shake = 10;
+            this.createDamageEffect();
+            this.playDamageSound();
+        }
+        
+        // Push player away
+        const dx = this.player.x - enemy.x;
+        const dy = this.player.y - enemy.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 0) {
+            this.player.x += (dx / distance) * 30;
+            this.player.y += (dy / distance) * 30;
+        }
+    }
+    
+    playerHitByMiniBoss() {
+        if (this.player.shield > 0) {
+            this.player.shield = 0;
+            this.createShieldBreakEffect();
+        } else {
+            this.player.invulnerable = 3000; // 3 seconds invulnerability
+            this.camera.shake = 15;
+            this.createDamageEffect();
+            this.playDamageSound();
+        }
+        
+        // Push player away
+        const dx = this.player.x - this.miniBoss.x;
+        const dy = this.player.y - this.miniBoss.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 0) {
+            this.player.x += (dx / distance) * 50;
+            this.player.y += (dy / distance) * 50;
+        }
+    }
+    
+    spawnMiniBoss() {
+        this.miniBoss = {
+            x: Math.random() * (this.canvas.width * 2) - this.canvas.width,
+            y: Math.random() * (this.canvas.height * 2) - this.canvas.height,
+            size: 40,
+            speed: 0.8,
+            health: 10,
+            maxHealth: 10,
+            pulse: 0,
+            color: '#8B0000'
+        };
+        
+        this.createMiniBossSpawnEffect();
+        this.playMiniBossSound();
+    }
+    
     createCollectionParticles(x, y, color) {
         for (let i = 0; i < 8; i++) {
             this.particles.push({
@@ -322,6 +507,117 @@ class TopDownGame {
                 decay: 0.02,
                 size: 3 + Math.random() * 3,
                 color: color
+            });
+        }
+    }
+    
+    createPowerUpParticles(x, y, type) {
+        const colors = {
+            'shield': '#00BFFF',
+            'magnet': '#FFD700',
+            'speed': '#FF6B6B'
+        };
+        
+        for (let i = 0; i < 12; i++) {
+            this.particles.push({
+                x: x,
+                y: y,
+                vx: (Math.random() - 0.5) * 6,
+                vy: (Math.random() - 0.5) * 6,
+                life: 1,
+                decay: 0.015,
+                size: 4 + Math.random() * 4,
+                color: colors[type]
+            });
+        }
+    }
+    
+    createShieldEffect() {
+        for (let i = 0; i < 20; i++) {
+            this.particles.push({
+                x: this.player.x,
+                y: this.player.y,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 0.5) * 8,
+                life: 1,
+                decay: 0.01,
+                size: 5 + Math.random() * 5,
+                color: '#00BFFF'
+            });
+        }
+    }
+    
+    createMagnetEffect() {
+        for (let i = 0; i < 15; i++) {
+            this.particles.push({
+                x: this.player.x,
+                y: this.player.y,
+                vx: (Math.random() - 0.5) * 6,
+                vy: (Math.random() - 0.5) * 6,
+                life: 1,
+                decay: 0.012,
+                size: 3 + Math.random() * 3,
+                color: '#FFD700'
+            });
+        }
+    }
+    
+    createSpeedEffect() {
+        for (let i = 0; i < 10; i++) {
+            this.particles.push({
+                x: this.player.x,
+                y: this.player.y,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                life: 1,
+                decay: 0.02,
+                size: 2 + Math.random() * 2,
+                color: '#FF6B6B'
+            });
+        }
+    }
+    
+    createShieldBreakEffect() {
+        for (let i = 0; i < 25; i++) {
+            this.particles.push({
+                x: this.player.x,
+                y: this.player.y,
+                vx: (Math.random() - 0.5) * 12,
+                vy: (Math.random() - 0.5) * 12,
+                life: 1,
+                decay: 0.03,
+                size: 4 + Math.random() * 4,
+                color: '#00BFFF'
+            });
+        }
+    }
+    
+    createDamageEffect() {
+        for (let i = 0; i < 30; i++) {
+            this.particles.push({
+                x: this.player.x,
+                y: this.player.y,
+                vx: (Math.random() - 0.5) * 15,
+                vy: (Math.random() - 0.5) * 15,
+                life: 1,
+                decay: 0.04,
+                size: 3 + Math.random() * 3,
+                color: '#FF4444'
+            });
+        }
+    }
+    
+    createMiniBossSpawnEffect() {
+        for (let i = 0; i < 50; i++) {
+            this.particles.push({
+                x: this.miniBoss.x,
+                y: this.miniBoss.y,
+                vx: (Math.random() - 0.5) * 20,
+                vy: (Math.random() - 0.5) * 20,
+                life: 1,
+                decay: 0.01,
+                size: 6 + Math.random() * 6,
+                color: '#8B0000'
             });
         }
     }
@@ -406,6 +702,121 @@ class TopDownGame {
         }
     }
     
+    updateEnemies() {
+        this.enemies.forEach(enemy => {
+            enemy.pulse += 0.1;
+            
+            if (enemy.type === 'chaser') {
+                // Chase player
+                const dx = this.player.x - enemy.x;
+                const dy = this.player.y - enemy.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance > 0) {
+                    enemy.x += (dx / distance) * enemy.speed;
+                    enemy.y += (dy / distance) * enemy.speed;
+                }
+            } else {
+                // Patrol behavior
+                const dx = enemy.patrolTarget.x - enemy.x;
+                const dy = enemy.patrolTarget.y - enemy.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < 50) {
+                    // Get new patrol target
+                    enemy.patrolTarget.x = Math.random() * (this.canvas.width * 2) - this.canvas.width;
+                    enemy.patrolTarget.y = Math.random() * (this.canvas.height * 2) - this.canvas.height;
+                } else if (distance > 0) {
+                    enemy.x += (dx / distance) * enemy.speed * 0.5;
+                    enemy.y += (dy / distance) * enemy.speed * 0.5;
+                }
+            }
+            
+            // Check collision with player
+            const dx = enemy.x - this.player.x;
+            const dy = enemy.y - this.player.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < this.player.size + enemy.size && this.player.invulnerable <= 0) {
+                this.playerHitByEnemy(enemy);
+            }
+        });
+    }
+    
+    updatePowerUps() {
+        this.powerUps.forEach(powerUp => {
+            if (powerUp.collected) return;
+            
+            powerUp.pulse += 0.15;
+            
+            // Check collision with player
+            const dx = powerUp.x - this.player.x;
+            const dy = powerUp.y - this.player.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < this.player.size + powerUp.size) {
+                this.collectPowerUp(powerUp);
+            }
+        });
+    }
+    
+    updateMiniBoss() {
+        // Spawn mini-boss every 30 seconds if score is high enough
+        if (this.score > 50 && !this.miniBoss && Math.random() < 0.001) {
+            this.spawnMiniBoss();
+        }
+        
+        if (this.miniBoss) {
+            this.miniBoss.pulse += 0.05;
+            
+            // Mini-boss AI - move towards player but slower
+            const dx = this.player.x - this.miniBoss.x;
+            const dy = this.player.y - this.miniBoss.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance > 0) {
+                this.miniBoss.x += (dx / distance) * this.miniBoss.speed;
+                this.miniBoss.y += (dy / distance) * this.miniBoss.speed;
+            }
+            
+            // Check collision with player
+            if (distance < this.player.size + this.miniBoss.size && this.player.invulnerable <= 0) {
+                this.playerHitByMiniBoss();
+            }
+        }
+    }
+    
+    updatePlayerEffects() {
+        const now = Date.now();
+        
+        // Update power-up timers
+        if (this.player.shield > 0) {
+            this.player.shield -= 16; // Assuming 60fps
+            if (this.player.shield <= 0) this.player.shield = 0;
+        }
+        
+        if (this.player.magnet > 0) {
+            this.player.magnet -= 16;
+            if (this.player.magnet <= 0) this.player.magnet = 0;
+        }
+        
+        if (this.player.speedBoost > 0) {
+            this.player.speedBoost -= 16;
+            if (this.player.speedBoost <= 0) this.player.speedBoost = 0;
+        }
+        
+        if (this.player.invulnerable > 0) {
+            this.player.invulnerable -= 16;
+            if (this.player.invulnerable <= 0) this.player.invulnerable = 0;
+        }
+        
+        // Update combo system
+        if (now - this.lastCollectionTime > 2000) { // 2 seconds
+            this.combo = 0;
+            this.comboMultiplier = 1;
+        }
+    }
+    
     updateParticles() {
         this.particles = this.particles.filter(particle => {
             particle.x += particle.vx;
@@ -422,6 +833,81 @@ class TopDownGame {
         const scoreElement = document.getElementById('energy-score');
         if (scoreElement) {
             scoreElement.textContent = this.score;
+        }
+        
+        // Update combo display
+        this.updateComboDisplay();
+        this.updatePowerUpDisplay();
+    }
+    
+    updateComboDisplay() {
+        let comboElement = document.getElementById('combo-display');
+        if (!comboElement) {
+            comboElement = document.createElement('div');
+            comboElement.id = 'combo-display';
+            comboElement.style.cssText = `
+                position: fixed;
+                top: 80px;
+                left: 20px;
+                background: linear-gradient(145deg, rgba(255, 100, 100, 0.8), rgba(200, 50, 50, 0.9));
+                border: 2px solid rgba(255, 150, 150, 0.6);
+                border-radius: 25px;
+                padding: 12px 20px;
+                backdrop-filter: blur(10px);
+                color: white;
+                font-family: 'Orbitron', sans-serif;
+                font-size: 1.2rem;
+                font-weight: 700;
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+                z-index: 10;
+                display: none;
+            `;
+            document.body.appendChild(comboElement);
+        }
+        
+        if (this.combo > 1) {
+            comboElement.style.display = 'block';
+            comboElement.textContent = `COMBO x${this.comboMultiplier.toFixed(1)}`;
+        } else {
+            comboElement.style.display = 'none';
+        }
+    }
+    
+    updatePowerUpDisplay() {
+        let powerUpElement = document.getElementById('powerup-display');
+        if (!powerUpElement) {
+            powerUpElement = document.createElement('div');
+            powerUpElement.id = 'powerup-display';
+            powerUpElement.style.cssText = `
+                position: fixed;
+                top: 130px;
+                left: 20px;
+                background: linear-gradient(145deg, rgba(0, 100, 200, 0.8), rgba(0, 50, 150, 0.9));
+                border: 2px solid rgba(0, 191, 255, 0.6);
+                border-radius: 25px;
+                padding: 12px 20px;
+                backdrop-filter: blur(10px);
+                color: white;
+                font-family: 'Rajdhani', sans-serif;
+                font-size: 1rem;
+                font-weight: 600;
+                text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+                z-index: 10;
+                display: none;
+            `;
+            document.body.appendChild(powerUpElement);
+        }
+        
+        const activePowerUps = [];
+        if (this.player.shield > 0) activePowerUps.push('🛡️ Shield');
+        if (this.player.magnet > 0) activePowerUps.push('🧲 Magnet');
+        if (this.player.speedBoost > 0) activePowerUps.push('⚡ Speed');
+        
+        if (activePowerUps.length > 0) {
+            powerUpElement.style.display = 'block';
+            powerUpElement.textContent = activePowerUps.join(' | ');
+        } else {
+            powerUpElement.style.display = 'none';
         }
     }
     
@@ -492,6 +978,75 @@ class TopDownGame {
         }
     }
     
+    playPowerUpSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.2);
+            oscillator.frequency.exponentialRampToValueAtTime(1800, audioContext.currentTime + 0.4);
+            
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        } catch (e) {
+            console.log('Audio context not available');
+        }
+    }
+    
+    playDamageSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(100, audioContext.currentTime + 0.3);
+            
+            gainNode.gain.setValueAtTime(0.08, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.3);
+        } catch (e) {
+            console.log('Audio context not available');
+        }
+    }
+    
+    playMiniBossSound() {
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(150, audioContext.currentTime);
+            oscillator.frequency.setValueAtTime(200, audioContext.currentTime + 0.2);
+            oscillator.frequency.setValueAtTime(150, audioContext.currentTime + 0.4);
+            oscillator.frequency.setValueAtTime(100, audioContext.currentTime + 0.6);
+            
+            gainNode.gain.setValueAtTime(0.12, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.8);
+        } catch (e) {
+            console.log('Audio context not available');
+        }
+    }
+    
     render() {
         if (!this.ctx) return;
         
@@ -513,6 +1068,15 @@ class TopDownGame {
         
         // Draw power stations
         this.drawPowerStations();
+        
+        // Draw enemies
+        this.drawEnemies();
+        
+        // Draw power-ups
+        this.drawPowerUps();
+        
+        // Draw mini-boss
+        this.drawMiniBoss();
         
         // Draw energy items
         this.drawEnergyItems();
@@ -686,10 +1250,128 @@ class TopDownGame {
         this.ctx.stroke();
     }
     
+    drawEnemies() {
+        this.enemies.forEach(enemy => {
+            const pulseSize = enemy.size + Math.sin(enemy.pulse) * 2;
+            
+            // Enemy glow
+            this.ctx.shadowColor = enemy.color;
+            this.ctx.shadowBlur = 15;
+            
+            // Enemy body
+            this.ctx.fillStyle = enemy.color;
+            this.ctx.beginPath();
+            this.ctx.arc(enemy.x, enemy.y, pulseSize, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Enemy eyes
+            this.ctx.shadowBlur = 0;
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.beginPath();
+            this.ctx.arc(enemy.x - pulseSize/3, enemy.y - pulseSize/3, pulseSize/4, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.beginPath();
+            this.ctx.arc(enemy.x + pulseSize/3, enemy.y - pulseSize/3, pulseSize/4, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Health bar
+            if (enemy.health < enemy.maxHealth) {
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                this.ctx.fillRect(enemy.x - pulseSize, enemy.y - pulseSize - 8, pulseSize * 2, 4);
+                this.ctx.fillStyle = '#FF4444';
+                this.ctx.fillRect(enemy.x - pulseSize, enemy.y - pulseSize - 8, (pulseSize * 2) * (enemy.health / enemy.maxHealth), 4);
+            }
+        });
+    }
+    
+    drawPowerUps() {
+        this.powerUps.forEach(powerUp => {
+            if (powerUp.collected) return;
+            
+            const pulseSize = powerUp.size + Math.sin(powerUp.pulse) * 3;
+            const colors = {
+                'shield': '#00BFFF',
+                'magnet': '#FFD700',
+                'speed': '#FF6B6B'
+            };
+            
+            // Power-up glow
+            this.ctx.shadowColor = colors[powerUp.type];
+            this.ctx.shadowBlur = 20;
+            
+            // Power-up body
+            this.ctx.fillStyle = colors[powerUp.type];
+            this.ctx.beginPath();
+            this.ctx.arc(powerUp.x, powerUp.y, pulseSize, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Power-up symbol
+            this.ctx.shadowBlur = 0;
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.font = `${pulseSize}px Arial`;
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            
+            let symbol = '';
+            switch(powerUp.type) {
+                case 'shield': symbol = '🛡️'; break;
+                case 'magnet': symbol = '🧲'; break;
+                case 'speed': symbol = '⚡'; break;
+            }
+            
+            this.ctx.fillText(symbol, powerUp.x, powerUp.y);
+        });
+    }
+    
+    drawMiniBoss() {
+        if (!this.miniBoss) return;
+        
+        const pulseSize = this.miniBoss.size + Math.sin(this.miniBoss.pulse) * 5;
+        
+        // Mini-boss glow
+        this.ctx.shadowColor = this.miniBoss.color;
+        this.ctx.shadowBlur = 30;
+        
+        // Mini-boss body
+        this.ctx.fillStyle = this.miniBoss.color;
+        this.ctx.beginPath();
+        this.ctx.arc(this.miniBoss.x, this.miniBoss.y, pulseSize, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Mini-boss inner circle
+        this.ctx.shadowBlur = 0;
+        this.ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+        this.ctx.beginPath();
+        this.ctx.arc(this.miniBoss.x, this.miniBoss.y, pulseSize * 0.6, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Health bar
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        this.ctx.fillRect(this.miniBoss.x - pulseSize, this.miniBoss.y - pulseSize - 12, pulseSize * 2, 6);
+        this.ctx.fillStyle = '#8B0000';
+        this.ctx.fillRect(this.miniBoss.x - pulseSize, this.miniBoss.y - pulseSize - 12, (pulseSize * 2) * (this.miniBoss.health / this.miniBoss.maxHealth), 6);
+        
+        // Mini-boss symbol
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.font = `${pulseSize}px Arial`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText('👹', this.miniBoss.x, this.miniBoss.y);
+    }
+    
     drawPlayer() {
         // Player glow
         this.ctx.shadowColor = this.player.color;
         this.ctx.shadowBlur = 20;
+        
+        // Shield effect
+        if (this.player.shield > 0) {
+            this.ctx.strokeStyle = 'rgba(0, 191, 255, 0.8)';
+            this.ctx.lineWidth = 4;
+            this.ctx.beginPath();
+            this.ctx.arc(this.player.x, this.player.y, this.player.size + 10, 0, Math.PI * 2);
+            this.ctx.stroke();
+        }
         
         // Player body
         this.ctx.fillStyle = this.player.color;
@@ -710,6 +1392,17 @@ class TopDownGame {
         this.ctx.beginPath();
         this.ctx.arc(this.player.x, this.player.y, this.player.size * 0.8, 0, Math.PI * 2);
         this.ctx.stroke();
+        
+        // Invulnerability effect
+        if (this.player.invulnerable > 0) {
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            this.ctx.lineWidth = 3;
+            this.ctx.setLineDash([5, 5]);
+            this.ctx.beginPath();
+            this.ctx.arc(this.player.x, this.player.y, this.player.size + 5, 0, Math.PI * 2);
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+        }
     }
     
     drawParticles() {
@@ -748,13 +1441,28 @@ class TopDownGame {
     
     reset() {
         this.score = 0;
+        this.combo = 0;
+        this.comboMultiplier = 1;
+        this.lastCollectionTime = 0;
+        
         this.player.x = 100;
         this.player.y = 100;
         this.player.trail = [];
+        this.player.shield = 0;
+        this.player.magnet = 0;
+        this.player.speedBoost = 0;
+        this.player.invulnerable = 0;
+        
         this.particles = [];
+        this.enemies = [];
+        this.powerUps = [];
+        this.miniBoss = null;
+        
         this.generateEnergyItems();
         this.generateObstacles();
         this.generatePowerStations();
+        this.generateEnemies();
+        this.generatePowerUps();
         this.updateScore();
     }
 }
