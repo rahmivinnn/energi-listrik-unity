@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Energy Quest</title>
     <link rel="stylesheet" href="public/main-menu.css">
     <link rel="icon" type="image/x-icon" href="public/favicon.ico">
@@ -10,7 +10,21 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="public/audio-manager.js"></script>
     <style>
-        /* Splash Screen Styles - Super Immersive */
+        /* Mobile Landscape Optimization */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            position: fixed;
+        }
+        
+        /* Splash Screen Styles - Mobile Landscape Optimized */
         #splash-screen {
             position: fixed;
             top: 0;
@@ -19,33 +33,47 @@
             height: 100vh;
             background: #000000;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             justify-content: center;
             align-items: center;
             z-index: 1000;
             transition: opacity 1s ease-out;
+            padding: 10px;
+        }
+        
+        .splash-content {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 30px;
+            max-width: 100%;
+            width: 100%;
+            justify-content: center;
         }
         
         .splash-logo {
-            width: 500px;
+            width: min(25vw, 200px);
             height: auto;
-            margin-bottom: 40px;
             animation: logoGlow 3s ease-in-out infinite alternate;
             filter: drop-shadow(0 0 20px rgba(0, 255, 136, 0.5));
+            flex-shrink: 0;
         }
         
         .loading-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 20px;
+            gap: 15px;
+            flex: 1;
+            max-width: 300px;
         }
         
         .loading-bar {
-            width: 400px;
-            height: 8px;
+            width: 100%;
+            max-width: 250px;
+            height: 6px;
             background: rgba(255,255,255,0.1);
-            border-radius: 4px;
+            border-radius: 3px;
             overflow: hidden;
             border: 1px solid rgba(0, 255, 136, 0.3);
         }
@@ -60,11 +88,12 @@
         
         .loading-text {
             color: #00ff88;
-            font-size: 1.2rem;
+            font-size: clamp(0.8rem, 2.5vw, 1.2rem);
             font-family: "Orbitron", sans-serif;
             font-weight: bold;
             text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
             animation: textPulse 2s ease-in-out infinite;
+            text-align: center;
         }
         
         @keyframes logoGlow {
@@ -83,7 +112,7 @@
             50% { opacity: 1; }
         }
         
-        /* Video Cutscene Styles */
+        /* Video Cutscene Styles - Mobile Landscape Optimized */
         #video-container {
             position: fixed;
             top: 0;
@@ -103,14 +132,14 @@
         
         #skip-button {
             position: fixed;
-            top: 20px;
-            right: 20px;
+            top: 10px;
+            right: 10px;
             background: linear-gradient(45deg, #1a237e, #0d47a1);
             border: none;
-            padding: 15px 30px;
-            border-radius: 10px;
+            padding: clamp(8px, 2vw, 15px) clamp(15px, 4vw, 30px);
+            border-radius: 8px;
             color: white;
-            font-size: 1.2rem;
+            font-size: clamp(0.8rem, 2.5vw, 1.2rem);
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -127,7 +156,7 @@
             background: linear-gradient(45deg, #283593, #1565c0);
         }
         
-        /* Main Menu Styles */
+        /* Main Menu Styles - Mobile Landscape Optimized */
         #main-menu {
             position: fixed;
             top: 0;
@@ -169,45 +198,50 @@
             width: 100%;
             height: 100%;
             display: flex;
-            flex-direction: column;
-            justify-content: center;
+            flex-direction: row;
+            justify-content: space-between;
             align-items: center;
+            padding: 20px;
+            gap: 20px;
         }
         
         .header-container {
             text-align: center;
-            margin-bottom: 50px;
+            flex: 1;
+            max-width: 40%;
         }
         
         .main-logo {
-            width: 250px;
+            width: min(20vw, 150px);
             height: auto;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             filter: drop-shadow(0 0 20px rgba(0, 255, 136, 0.5));
         }
         
         .game-title-energy {
             color: #ffff00;
-            font-size: 4rem;
+            font-size: clamp(2rem, 6vw, 4rem);
             font-weight: bold;
             margin: 0;
             font-family: "Orbitron", sans-serif;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.8), 0 0 20px rgba(255,255,0,0.5);
+            line-height: 0.9;
         }
         
         .game-title-quest {
             color: #00ccff;
-            font-size: 4rem;
+            font-size: clamp(2rem, 6vw, 4rem);
             font-weight: bold;
             margin: 0;
             font-family: "Orbitron", sans-serif;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.8), 0 0 20px rgba(0,204,255,0.5);
+            line-height: 0.9;
         }
         
         .game-subtitle {
             color: #ffff00;
-            font-size: 1.5rem;
-            margin-top: 15px;
+            font-size: clamp(0.8rem, 2.5vw, 1.5rem);
+            margin-top: 10px;
             font-family: "Orbitron", sans-serif;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
         }
@@ -215,17 +249,19 @@
         .level-menu {
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: clamp(8px, 2vw, 20px);
             align-items: center;
+            flex: 1;
+            max-width: 50%;
         }
         
         .unity-btn {
             background: linear-gradient(45deg, #00ff88, #00ccff);
             border: none;
-            padding: 15px 30px;
-            border-radius: 10px;
+            padding: clamp(8px, 2vw, 15px) clamp(15px, 4vw, 30px);
+            border-radius: 8px;
             color: white;
-            font-size: 1.2rem;
+            font-size: clamp(0.8rem, 2.5vw, 1.2rem);
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -233,6 +269,9 @@
             text-transform: uppercase;
             box-shadow: 0 4px 15px rgba(0,255,136,0.3);
             text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 250px;
+            text-align: center;
         }
         
         .unity-btn:hover {
@@ -241,19 +280,109 @@
         }
         
         .unity-btn i {
-            margin-right: 10px;
+            margin-right: 8px;
+        }
+        
+        /* Mobile Landscape Specific Adjustments */
+        @media screen and (orientation: landscape) and (max-height: 600px) {
+            .splash-content {
+                gap: 20px;
+            }
+            
+            .splash-logo {
+                width: min(20vw, 150px);
+            }
+            
+            .loading-container {
+                gap: 10px;
+            }
+            
+            .loading-bar {
+                max-width: 200px;
+                height: 5px;
+            }
+            
+            .main-logo {
+                width: min(15vw, 120px);
+                margin-bottom: 15px;
+            }
+            
+            .game-title-energy,
+            .game-title-quest {
+                font-size: clamp(1.5rem, 5vw, 3rem);
+            }
+            
+            .game-subtitle {
+                font-size: clamp(0.7rem, 2vw, 1.2rem);
+                margin-top: 8px;
+            }
+            
+            .unity-btn {
+                padding: clamp(6px, 1.5vw, 12px) clamp(12px, 3vw, 25px);
+                font-size: clamp(0.7rem, 2vw, 1rem);
+            }
+            
+            .level-menu {
+                gap: clamp(6px, 1.5vw, 15px);
+            }
+        }
+        
+        /* Very small mobile landscape screens */
+        @media screen and (orientation: landscape) and (max-height: 500px) {
+            .splash-content {
+                gap: 15px;
+            }
+            
+            .splash-logo {
+                width: min(18vw, 120px);
+            }
+            
+            .loading-container {
+                gap: 8px;
+            }
+            
+            .loading-bar {
+                max-width: 150px;
+                height: 4px;
+            }
+            
+            .main-logo {
+                width: min(12vw, 100px);
+                margin-bottom: 10px;
+            }
+            
+            .game-title-energy,
+            .game-title-quest {
+                font-size: clamp(1.2rem, 4vw, 2.5rem);
+            }
+            
+            .game-subtitle {
+                font-size: clamp(0.6rem, 1.8vw, 1rem);
+                margin-top: 5px;
+            }
+            
+            .unity-btn {
+                padding: clamp(5px, 1.2vw, 10px) clamp(10px, 2.5vw, 20px);
+                font-size: clamp(0.6rem, 1.8vw, 0.9rem);
+            }
+            
+            .level-menu {
+                gap: clamp(5px, 1.2vw, 12px);
+            }
         }
     </style>
 </head>
 <body>
-    <!-- Splash Screen - Super Immersive -->
+    <!-- Splash Screen - Mobile Landscape Optimized -->
     <div id="splash-screen">
-        <img src="public/logo.png" alt="Energy Quest Logo" class="splash-logo">
-        <div class="loading-container">
-            <div class="loading-bar">
-                <div class="loading-progress" id="loading-progress"></div>
+        <div class="splash-content">
+            <img src="public/logo.png" alt="Energy Quest Logo" class="splash-logo">
+            <div class="loading-container">
+                <div class="loading-bar">
+                    <div class="loading-progress" id="loading-progress"></div>
+                </div>
+                <div class="loading-text" id="loading-text">Loading...</div>
             </div>
-            <div class="loading-text" id="loading-text">Loading...</div>
         </div>
     </div>
     
