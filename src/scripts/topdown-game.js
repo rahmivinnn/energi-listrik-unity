@@ -68,6 +68,9 @@ class TopDownGame {
             right: false
         };
         
+        this.backgroundMusic = null;
+        this.soundEnabled = true;
+        this.musicEnabled = true;
         this.init();
     }
     
@@ -81,6 +84,7 @@ class TopDownGame {
         this.generatePowerUps();
         this.generateHazards();
         this.initializeAchievements();
+        this.initializeBackgroundMusic();
         this.start();
     }
     
@@ -148,6 +152,14 @@ class TopDownGame {
             case ' ':
                 // Spacebar for ultimate ability
                 this.useUltimate();
+                break;
+            case 'q':
+                // Q for special ability 1
+                this.useSpecialAbility1();
+                break;
+            case 'e':
+                // E for special ability 2
+                this.useSpecialAbility2();
                 break;
         }
     }
@@ -1180,6 +1192,7 @@ class TopDownGame {
         // Update combo display
         this.updateComboDisplay();
         this.updatePowerUpDisplay();
+        this.updateSpecialAbilitiesDisplay();
         this.updateLevelDisplay();
         this.updateUltimateDisplay();
     }
@@ -1252,6 +1265,43 @@ class TopDownGame {
             powerUpElement.textContent = activePowerUps.join(' | ');
         } else {
             powerUpElement.style.display = 'none';
+        }
+    }
+    
+    updateSpecialAbilitiesDisplay() {
+        let abilitiesElement = document.getElementById('abilities-display');
+        if (!abilitiesElement) {
+            abilitiesElement = document.createElement('div');
+            abilitiesElement.id = 'abilities-display';
+            abilitiesElement.style.cssText = `
+                position: fixed;
+                top: 180px;
+                left: 20px;
+                background: linear-gradient(145deg, rgba(100, 50, 200, 0.8), rgba(75, 25, 150, 0.9));
+                border: 2px solid rgba(150, 100, 255, 0.6);
+                border-radius: 25px;
+                padding: 12px 20px;
+                backdrop-filter: blur(10px);
+                color: white;
+                font-family: 'Rajdhani', sans-serif;
+                font-size: 0.9rem;
+                font-weight: 600;
+                text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+                z-index: 10;
+                display: none;
+            `;
+            document.body.appendChild(abilitiesElement);
+        }
+        
+        const abilities = [];
+        if (this.score >= 10) abilities.push('Q: Energy Burst (10)');
+        if (this.score >= 15) abilities.push('E: Teleport (15)');
+        
+        if (abilities.length > 0) {
+            abilitiesElement.style.display = 'block';
+            abilitiesElement.textContent = abilities.join(' | ');
+        } else {
+            abilitiesElement.style.display = 'none';
         }
     }
     
@@ -1540,6 +1590,278 @@ class TopDownGame {
             
             oscillator.start(audioContext.currentTime);
             oscillator.stop(audioContext.currentTime + 1.0);
+        } catch (e) {
+            console.log('Audio context not available');
+        }
+    }
+    
+    initializeBackgroundMusic() {
+        if (!this.musicEnabled) return;
+        
+        try {
+            // Create ambient background music using Web Audio API
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Create multiple oscillators for layered ambient sound
+            this.createAmbientLayer(audioContext, 220, 0.02, 'sine'); // Low bass
+            this.createAmbientLayer(audioContext, 330, 0.015, 'triangle'); // Mid tone
+            this.createAmbientLayer(audioContext, 440, 0.01, 'sine'); // High tone
+            
+            // Add some random frequency modulation for dynamic feel
+            this.createModulatedLayer(audioContext);
+            
+        } catch (e) {
+            console.log('Background music not available');
+        }
+    }
+    
+    createAmbientLayer(audioContext, frequency, volume, waveType) {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        const filter = audioContext.createBiquadFilter();
+        
+        oscillator.type = waveType;
+        oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+        
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, audioContext.currentTime);
+        
+        oscillator.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+        
+        // Add subtle frequency modulation
+        oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(frequency * 1.01, audioContext.currentTime + 2);
+        oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime + 4);
+        
+        oscillator.start(audioContext.currentTime);
+    }
+    
+    createModulatedLayer(audioContext) {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        const lfo = audioContext.createOscillator();
+        const lfoGain = audioContext.createGain();
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(110, audioContext.currentTime);
+        
+        lfo.type = 'sine';
+        lfo.frequency.setValueAtTime(0.1, audioContext.currentTime);
+        
+        lfoGain.gain.setValueAtTime(10, audioContext.currentTime);
+        
+        lfo.connect(lfoGain);
+        lfoGain.connect(oscillator.frequency);
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        gainNode.gain.setValueAtTime(0.005, audioContext.currentTime);
+        
+        oscillator.start(audioContext.currentTime);
+        lfo.start(audioContext.currentTime);
+    }
+    
+    toggleSound() {
+        this.soundEnabled = !this.soundEnabled;
+        this.updateSoundSettings();
+    }
+    
+    toggleMusic() {
+        this.musicEnabled = !this.musicEnabled;
+        this.updateSoundSettings();
+        
+        if (!this.musicEnabled && this.backgroundMusic) {
+            this.backgroundMusic.stop();
+        } else if (this.musicEnabled) {
+            this.initializeBackgroundMusic();
+        }
+    }
+    
+    updateSoundSettings() {
+        // Update UI to show sound/music status
+        const soundButton = document.getElementById('sound-toggle');
+        const musicButton = document.getElementById('music-toggle');
+        
+        if (soundButton) {
+            soundButton.textContent = this.soundEnabled ? '🔊' : '🔇';
+        }
+        
+        if (musicButton) {
+            musicButton.textContent = this.musicEnabled ? '🎵' : '🎵❌';
+        }
+    }
+    
+    useSpecialAbility1() {
+        // Energy Burst - Create a burst of energy that damages nearby enemies
+        if (this.score >= 10) {
+            this.score -= 10; // Cost 10 energy
+            this.updateScore();
+            
+            this.createEnergyBurstEffect();
+            this.playEnergyBurstSound();
+            
+            // Damage nearby enemies
+            this.enemies.forEach(enemy => {
+                const dx = enemy.x - this.player.x;
+                const dy = enemy.y - this.player.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < 100) { // Burst range
+                    enemy.health -= 1;
+                    if (enemy.health <= 0) {
+                        this.createEnemyDeathEffect(enemy);
+                    }
+                }
+            });
+        }
+    }
+    
+    useSpecialAbility2() {
+        // Teleport - Instantly move to a random safe location
+        if (this.score >= 15) {
+            this.score -= 15; // Cost 15 energy
+            this.updateScore();
+            
+            // Find a safe location (away from enemies and hazards)
+            let attempts = 0;
+            let newX, newY;
+            
+            do {
+                newX = Math.random() * (this.canvas.width * 2) - this.canvas.width;
+                newY = Math.random() * (this.canvas.height * 2) - this.canvas.height;
+                attempts++;
+            } while (attempts < 50 && this.isLocationDangerous(newX, newY));
+            
+            this.player.x = newX;
+            this.player.y = newY;
+            
+            this.createTeleportEffect();
+            this.playTeleportSound();
+        }
+    }
+    
+    isLocationDangerous(x, y) {
+        // Check if location is near enemies or hazards
+        const dangerRadius = 80;
+        
+        // Check enemies
+        for (let enemy of this.enemies) {
+            const dx = enemy.x - x;
+            const dy = enemy.y - y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < dangerRadius) return true;
+        }
+        
+        // Check hazards
+        for (let hazard of this.hazards) {
+            const dx = hazard.x - x;
+            const dy = hazard.y - y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < dangerRadius) return true;
+        }
+        
+        return false;
+    }
+    
+    createEnergyBurstEffect() {
+        for (let i = 0; i < 30; i++) {
+            const angle = (i / 30) * Math.PI * 2;
+            const speed = 8 + Math.random() * 4;
+            
+            this.particles.push({
+                x: this.player.x,
+                y: this.player.y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: 1,
+                decay: 0.02,
+                size: 4 + Math.random() * 4,
+                color: '#FFD700'
+            });
+        }
+    }
+    
+    createTeleportEffect() {
+        // Create teleport particles at old and new location
+        for (let i = 0; i < 20; i++) {
+            this.particles.push({
+                x: this.player.x + (Math.random() - 0.5) * 40,
+                y: this.player.y + (Math.random() - 0.5) * 40,
+                vx: (Math.random() - 0.5) * 6,
+                vy: (Math.random() - 0.5) * 6,
+                life: 1,
+                decay: 0.03,
+                size: 3 + Math.random() * 3,
+                color: '#00BFFF'
+            });
+        }
+    }
+    
+    createEnemyDeathEffect(enemy) {
+        for (let i = 0; i < 15; i++) {
+            this.particles.push({
+                x: enemy.x,
+                y: enemy.y,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 0.5) * 8,
+                life: 1,
+                decay: 0.04,
+                size: 2 + Math.random() * 3,
+                color: '#FF4444'
+            });
+        }
+    }
+    
+    playEnergyBurstSound() {
+        if (!this.soundEnabled) return;
+        
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(800, audioContext.currentTime + 0.1);
+            oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.3);
+            
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.4);
+        } catch (e) {
+            console.log('Audio context not available');
+        }
+    }
+    
+    playTeleportSound() {
+        if (!this.soundEnabled) return;
+        
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(1200, audioContext.currentTime + 0.2);
+            oscillator.frequency.exponentialRampToValueAtTime(300, audioContext.currentTime + 0.4);
+            
+            gainNode.gain.setValueAtTime(0.08, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
         } catch (e) {
             console.log('Audio context not available');
         }
