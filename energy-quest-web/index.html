@@ -10,14 +10,14 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="public/audio-manager.js"></script>
     <style>
-        /* Splash Screen Styles */
+        /* Splash Screen Styles - Super Immersive */
         #splash-screen {
             position: fixed;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            background: #000000;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -27,47 +27,60 @@
         }
         
         .splash-logo {
-            width: 400px;
+            width: 500px;
             height: auto;
-            margin-bottom: 30px;
-            animation: pulse 2s infinite;
-        }
-        
-        .splash-title {
-            color: white;
-            font-size: 4rem;
-            font-weight: bold;
-            margin-bottom: 20px;
-            text-align: center;
-            font-family: "Orbitron", sans-serif;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }
-        
-        .splash-subtitle {
-            color: #ccc;
-            font-size: 1.5rem;
-            text-align: center;
             margin-bottom: 40px;
+            animation: logoGlow 3s ease-in-out infinite alternate;
+            filter: drop-shadow(0 0 20px rgba(0, 255, 136, 0.5));
+        }
+        
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
         }
         
         .loading-bar {
             width: 400px;
-            height: 6px;
-            background: rgba(255,255,255,0.3);
-            border-radius: 3px;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
             overflow: hidden;
+            border: 1px solid rgba(0, 255, 136, 0.3);
         }
         
         .loading-progress {
             height: 100%;
-            background: linear-gradient(90deg, #00ff88, #00ccff);
+            background: linear-gradient(90deg, #00ff88, #00ccff, #00ff88);
             width: 0%;
             transition: width 0.3s ease;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
         }
         
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+        .loading-text {
+            color: #00ff88;
+            font-size: 1.2rem;
+            font-family: "Orbitron", sans-serif;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+            animation: textPulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes logoGlow {
+            0% { 
+                transform: scale(1);
+                filter: drop-shadow(0 0 20px rgba(0, 255, 136, 0.5));
+            }
+            100% { 
+                transform: scale(1.05);
+                filter: drop-shadow(0 0 30px rgba(0, 255, 136, 0.8));
+            }
+        }
+        
+        @keyframes textPulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
         }
         
         /* Video Cutscene Styles */
@@ -93,14 +106,21 @@
             top: 20px;
             right: 20px;
             background: rgba(0,0,0,0.7);
-            color: white;
-            border: 2px solid white;
+            color: #00ff88;
+            border: 2px solid #00ff88;
             padding: 10px 20px;
             border-radius: 5px;
             cursor: pointer;
             z-index: 3000;
             font-family: "Orbitron", sans-serif;
             font-weight: bold;
+            text-shadow: 0 0 5px rgba(0, 255, 136, 0.5);
+            transition: all 0.3s ease;
+        }
+        
+        #skip-button:hover {
+            background: rgba(0, 255, 136, 0.2);
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
         }
         
         /* Main Menu Styles */
@@ -135,7 +155,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.3);
+            background: rgba(0,0,0,0.4);
             z-index: 2;
         }
         
@@ -156,33 +176,36 @@
         }
         
         .main-logo {
-            width: 200px;
+            width: 250px;
             height: auto;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
+            filter: drop-shadow(0 0 20px rgba(0, 255, 136, 0.5));
         }
         
         .game-title-energy {
-            color: white;
-            font-size: 3rem;
+            color: #ffff00;
+            font-size: 4rem;
             font-weight: bold;
             margin: 0;
             font-family: "Orbitron", sans-serif;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8), 0 0 20px rgba(255,255,0,0.5);
         }
         
         .game-title-quest {
-            color: #00ff88;
-            font-size: 3rem;
+            color: #00ccff;
+            font-size: 4rem;
             font-weight: bold;
             margin: 0;
             font-family: "Orbitron", sans-serif;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8), 0 0 20px rgba(0,204,255,0.5);
         }
         
         .game-subtitle {
-            color: #ccc;
-            font-size: 1.2rem;
-            margin-top: 10px;
+            color: #ffff00;
+            font-size: 1.5rem;
+            margin-top: 15px;
+            font-family: "Orbitron", sans-serif;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
         }
         
         .level-menu {
@@ -205,6 +228,7 @@
             font-family: "Orbitron", sans-serif;
             text-transform: uppercase;
             box-shadow: 0 4px 15px rgba(0,255,136,0.3);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
         }
         
         .unity-btn:hover {
@@ -218,13 +242,14 @@
     </style>
 </head>
 <body>
-    <!-- Splash Screen -->
+    <!-- Splash Screen - Super Immersive -->
     <div id="splash-screen">
         <img src="public/logo.png" alt="Energy Quest Logo" class="splash-logo">
-        <h1 class="splash-title">ENERGY QUEST</h1>
-        <p class="splash-subtitle">Petualangan Hemat Energi</p>
-        <div class="loading-bar">
-            <div class="loading-progress" id="loading-progress"></div>
+        <div class="loading-container">
+            <div class="loading-bar">
+                <div class="loading-progress" id="loading-progress"></div>
+            </div>
+            <div class="loading-text" id="loading-text">Loading...</div>
         </div>
     </div>
     
@@ -250,7 +275,7 @@
                 <img src="public/logo.png" alt="Energy Quest Logo" class="main-logo">
                 <h1 class="game-title-energy">ENERGY</h1>
                 <h1 class="game-title-quest">QUEST</h1>
-                <p class="game-subtitle">Petualangan Hemat Energi</p>
+                <p class="game-subtitle">MISTER HEMAT LISTRIK</p>
             </div>
             
             <div class="level-menu">
@@ -294,18 +319,30 @@
                 console.log('Starting splash screen');
                 this.animateLoadingBar();
                 
-                // After 3 seconds, go to cutscene
+                // After 4 seconds, go to cutscene
                 setTimeout(() => {
                     this.goToCutscene();
-                }, 3000);
+                }, 4000);
             }
             
             animateLoadingBar() {
                 const progressBar = document.getElementById('loading-progress');
+                const loadingText = document.getElementById('loading-text');
                 let width = 0;
                 const interval = setInterval(() => {
-                    width += 2;
+                    width += 1.5;
                     progressBar.style.width = width + '%';
+                    
+                    // Update loading text
+                    if (width < 30) {
+                        loadingText.textContent = 'Loading...';
+                    } else if (width < 60) {
+                        loadingText.textContent = 'Preparing Energy Quest...';
+                    } else if (width < 90) {
+                        loadingText.textContent = 'Almost Ready...';
+                    } else {
+                        loadingText.textContent = 'Ready!';
+                    }
                     
                     if (width >= 100) {
                         clearInterval(interval);
