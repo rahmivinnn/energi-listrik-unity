@@ -74,6 +74,36 @@
             transform: scale(1.05);
         }
 
+        #start-game-btn {
+            position: absolute;
+            top: 20px;
+            right: 200px;
+            padding: 15px 30px;
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            border: none;
+            color: white;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            pointer-events: auto;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        #start-game-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
         #controls-info {
             position: absolute;
             bottom: 20px;
@@ -134,6 +164,18 @@
             padding: 5px 10px;
             border-radius: 5px;
         }
+
+        #object-counter {
+            position: absolute;
+            top: 100px;
+            left: 20px;
+            color: white;
+            font-family: monospace;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
@@ -151,14 +193,19 @@
         <div id="ui-overlay">
             <div id="game-title">SimCity 3D - Energy Quest</div>
             <button id="back-button" onclick="goBackToMenu()">← Kembali ke Menu</button>
+            <button id="start-game-btn" onclick="startGame()">🎮 MULAI GAME</button>
             <div id="fps-counter">FPS: 0</div>
+            <div id="object-counter">Objects: 0</div>
             
             <div id="controls-info">
                 <strong>Kontrol:</strong><br>
                 • Mouse: Putar kamera<br>
                 • Scroll: Zoom in/out<br>
                 • WASD: Gerakkan kamera<br>
-                • Klik: Pilih bangunan
+                • Klik: Interaksi dengan objek<br>
+                • R: Regenerate objek<br>
+                • Space: Toggle simulasi<br>
+                • C: Clear semua objek
             </div>
         </div>
     </div>
@@ -218,6 +265,42 @@
         }
         
         updateFPS();
+
+        // Game control functions
+        function startGame() {
+            if (window.simCityRenderer) {
+                window.simCityRenderer.startGame();
+                updateObjectCounter();
+                
+                // Change button text and style
+                const btn = document.getElementById('start-game-btn');
+                btn.textContent = '⏸️ PAUSE GAME';
+                btn.onclick = pauseGame;
+                btn.style.background = 'linear-gradient(45deg, #FFA500, #FF6B6B)';
+            }
+        }
+
+        function pauseGame() {
+            if (window.simCityRenderer) {
+                window.simCityRenderer.stopGame();
+                
+                // Change button text and style
+                const btn = document.getElementById('start-game-btn');
+                btn.textContent = '🎮 MULAI GAME';
+                btn.onclick = startGame;
+                btn.style.background = 'linear-gradient(45deg, #FF6B6B, #4ECDC4)';
+            }
+        }
+
+        function updateObjectCounter() {
+            if (window.simCityRenderer && window.simCityRenderer.getSimulationManager()) {
+                const count = window.simCityRenderer.getSimulationManager().getObjectCount();
+                document.getElementById('object-counter').textContent = `Objects: ${count}`;
+            }
+        }
+
+        // Update object counter every second
+        setInterval(updateObjectCounter, 1000);
     </script>
 </body>
 </html>
