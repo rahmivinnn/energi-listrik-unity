@@ -44,13 +44,9 @@ class TopDownGame {
         this.wasteSpawnRate = 0.01;
         this.powerUpSpawnRate = 0.005;
         
-        // Level progression
+        // Level progression - Integrated with main game
         this.levelTargets = {
-            1: { energy: 20, time: 60 },
-            2: { energy: 35, time: 50 },
-            3: { energy: 50, time: 45 },
-            4: { energy: 70, time: 40 },
-            5: { energy: 100, time: 35 }
+            1: { energy: 50, time: 60 } // Level 4 of main game
         };
         
         this.init();
@@ -90,11 +86,15 @@ class TopDownGame {
         });
         
         document.getElementById('menu-btn').addEventListener('click', () => {
-            this.goToMenu();
+            this.goToMainGame();
         });
         
         document.getElementById('pause-menu-btn').addEventListener('click', () => {
-            this.goToMenu();
+            this.goToMainGame();
+        });
+        
+        document.getElementById('back-to-menu-btn').addEventListener('click', () => {
+            this.goToMainGame();
         });
         
         document.getElementById('resume-btn').addEventListener('click', () => {
@@ -102,7 +102,11 @@ class TopDownGame {
         });
         
         document.getElementById('next-level-btn').addEventListener('click', () => {
-            this.nextLevel();
+            this.goToMainGame(); // Return to main game after completing level 4
+        });
+        
+        document.getElementById('back-to-main-btn').addEventListener('click', () => {
+            this.goToMainGame();
         });
     }
     
@@ -127,6 +131,11 @@ class TopDownGame {
     restartGame() {
         this.startGame();
         document.getElementById('game-over-screen').classList.add('hidden');
+    }
+    
+    goToMainGame() {
+        // Return to main game menu
+        window.location.href = '../index.html';
     }
     
     goToMenu() {
@@ -490,9 +499,8 @@ class TopDownGame {
         
         document.getElementById('level-complete-screen').classList.remove('hidden');
         
-        if (this.level >= 5) {
-            this.showMessage('Selamat! Game Selesai!', 'success', 5000);
-        }
+        // Show success message for main game integration
+        this.showMessage('Kunci Energi 4 Didapat! Akses ke Ruang Rahasia terbuka!', 'success', 5000);
     }
     
     gameOver() {

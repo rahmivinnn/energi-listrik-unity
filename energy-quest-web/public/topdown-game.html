@@ -46,15 +46,20 @@
         <div id="start-screen" class="screen">
             <div class="screen-content">
                 <h1>ENERGY QUEST</h1>
-                <h2>Top Down Adventure</h2>
-                <p>Kumpulkan energi hijau dan hindari energi boros!</p>
+                <h2>Level 4: Ruang Bawah Tanah</h2>
+                <p>Kumpulkan energi hijau dan hindari energi boros untuk membuka pintu rahasia!</p>
                 <div class="controls-info">
                     <h3>Kontrol:</h3>
                     <p>WASD atau Arrow Keys - Bergerak</p>
                     <p>Space - Dash (menggunakan energi)</p>
                     <p>E - Interact</p>
                 </div>
-                <button id="start-btn" class="game-btn">MULAI PERMAINAN</button>
+                <div class="level-info">
+                    <p><strong>Target:</strong> Kumpulkan 50 energi dalam 60 detik</p>
+                    <p><strong>Hadiah:</strong> Kunci Energi 4 - Akses ke Ruang Rahasia</p>
+                </div>
+                <button id="start-btn" class="game-btn">MULAI LEVEL 4</button>
+                <button id="back-to-menu-btn" class="game-btn secondary">KEMBALI KE MENU</button>
             </div>
         </div>
 
@@ -84,13 +89,18 @@
         <!-- Level Complete Screen -->
         <div id="level-complete-screen" class="screen hidden">
             <div class="screen-content">
-                <h1>LEVEL SELESAI!</h1>
+                <h1>LEVEL 4 SELESAI!</h1>
+                <div class="success-message">
+                    <h2>🔑 Kunci Energi 4 Didapat!</h2>
+                    <p>Akses ke Ruang Rahasia telah terbuka!</p>
+                </div>
                 <div id="level-stats">
                     <p>Skor Level: <span id="level-score">0</span></p>
                     <p>Energi Dikumpulkan: <span id="level-energy">0</span></p>
                     <p>Waktu Tersisa: <span id="time-bonus">0</span>s</p>
                 </div>
-                <button id="next-level-btn" class="game-btn">LEVEL BERIKUTNYA</button>
+                <button id="next-level-btn" class="game-btn">LANJUT KE RUANG RAHASIA</button>
+                <button id="back-to-main-btn" class="game-btn secondary">KEMBALI KE MENU UTAMA</button>
             </div>
         </div>
     </div>
