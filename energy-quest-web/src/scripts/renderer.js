@@ -3,6 +3,7 @@ import { CameraManager } from './camera.js';
 import { City } from './sim/city.js';
 import { InputManager } from './input.js';
 import { AssetManager } from './assets/assetManager.js';
+import { SimulationManager } from './sim/objects/simulationManager.js';
 
 /**
  * Main Three.js renderer class for SimCity game
@@ -15,8 +16,10 @@ export class SimCityRenderer {
     this.city = null;
     this.inputManager = null;
     this.assetManager = null;
+    this.simulationManager = null;
     this.isRunning = false;
     this.lastTime = 0;
+    this.gameStarted = false;
     
     this.init();
   }
@@ -76,6 +79,9 @@ export class SimCityRenderer {
       this.city = new City();
       this.scene.add(this.city);
       this.scene.add(this.city.debugMeshes);
+
+      // Initialize simulation manager
+      this.simulationManager = new SimulationManager(this.scene, this.camera.camera, this.renderer);
 
       // Add lighting
       this.setupLighting();
@@ -177,6 +183,11 @@ export class SimCityRenderer {
       }
     }
 
+    // Update simulation manager
+    if (this.simulationManager) {
+      this.simulationManager.update(deltaTime);
+    }
+
     // Update camera
     if (this.camera) {
       this.camera.updateCameraPosition();
@@ -217,6 +228,42 @@ export class SimCityRenderer {
   }
 
   /**
+   * Start the game simulation with 50 objects
+   */
+  startGame() {
+    if (this.simulationManager) {
+      this.gameStarted = true;
+      this.simulationManager.toggleSimulation();
+      console.log('Game started with 50 interactive objects!');
+    }
+  }
+
+  /**
+   * Stop the game simulation
+   */
+  stopGame() {
+    if (this.simulationManager) {
+      this.gameStarted = false;
+      this.simulationManager.toggleSimulation();
+      console.log('Game stopped');
+    }
+  }
+
+  /**
+   * Check if game is started
+   */
+  isGameStarted() {
+    return this.gameStarted;
+  }
+
+  /**
+   * Get simulation manager
+   */
+  getSimulationManager() {
+    return this.simulationManager;
+  }
+
+  /**
    * Dispose of resources
    */
   dispose() {
@@ -228,6 +275,10 @@ export class SimCityRenderer {
     
     if (this.city) {
       this.city.dispose?.();
+    }
+    
+    if (this.simulationManager) {
+      this.simulationManager.dispose();
     }
     
     window.removeEventListener('resize', this.onWindowResize.bind(this));
