@@ -5,6 +5,161 @@
     box-sizing: border-box;
 }
 
+/* Top-Down Game Canvas */
+#topdown-game-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+    background: transparent;
+}
+
+/* Game UI Overlay */
+#game-ui-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 20px;
+}
+
+.energy-counter {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(145deg, 
+        rgba(0, 100, 200, 0.8) 0%, 
+        rgba(0, 50, 150, 0.9) 100%);
+    border: 2px solid rgba(0, 191, 255, 0.6);
+    border-radius: 25px;
+    padding: 12px 20px;
+    backdrop-filter: blur(10px);
+    box-shadow: 
+        0 4px 15px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    animation: energyPulse 2s ease-in-out infinite;
+}
+
+.energy-counter i {
+    font-size: 1.5rem;
+    color: #FFD700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+    animation: boltSpin 1s linear infinite;
+}
+
+.energy-counter span {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #ffffff;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.game-instructions {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: linear-gradient(145deg, 
+        rgba(0, 0, 0, 0.7) 0%, 
+        rgba(0, 20, 40, 0.8) 100%);
+    border: 1px solid rgba(0, 191, 255, 0.4);
+    border-radius: 15px;
+    padding: 15px 20px;
+    backdrop-filter: blur(10px);
+    text-align: center;
+    max-width: 300px;
+}
+
+.game-instructions p {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.9rem;
+    color: #B0C4DE;
+    margin: 5px 0;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+/* Game Controls */
+.game-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    display: flex;
+    gap: 10px;
+    z-index: 10;
+}
+
+.control-btn {
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(145deg, 
+        rgba(0, 100, 200, 0.8) 0%, 
+        rgba(0, 50, 150, 0.9) 100%);
+    border: 2px solid rgba(0, 191, 255, 0.6);
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    box-shadow: 
+        0 4px 15px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.control-btn:hover {
+    background: linear-gradient(145deg, 
+        rgba(0, 150, 255, 0.9) 0%, 
+        rgba(0, 100, 200, 1) 100%);
+    border-color: rgba(0, 191, 255, 0.8);
+    transform: scale(1.1);
+    box-shadow: 
+        0 6px 25px rgba(0, 191, 255, 0.3),
+        0 0 30px rgba(0, 191, 255, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.control-btn:active {
+    transform: scale(0.95);
+}
+
+/* Game Animations */
+@keyframes energyPulse {
+    0%, 100% {
+        box-shadow: 
+            0 4px 15px rgba(0, 0, 0, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1),
+            0 0 20px rgba(0, 191, 255, 0.3);
+    }
+    50% {
+        box-shadow: 
+            0 4px 15px rgba(0, 0, 0, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1),
+            0 0 30px rgba(0, 191, 255, 0.6),
+            0 0 40px rgba(0, 191, 255, 0.4);
+    }
+}
+
+@keyframes boltSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 body {
     font-family: 'Orbitron', 'Rajdhani', sans-serif;
     overflow: hidden;
